@@ -19,8 +19,11 @@ var handler = async (m, { conn, participants, usedPrefix, command }) => {
     // Verificar si el usuario objetivo es admin
     const isAdminTarget = participants.some(p => p.id === user && p.admin)
 
-    // Verificar si quien ejecuta el comando es mod/admin autorizado
-    const isModSender = global.mods?.includes(m.sender) || participants.some(p => p.id === m.sender && p.admin)
+    // Verificar si quien ejecuta el comando es roowner, owner o mod
+    const isModSender =
+      global.roowner?.includes(m.sender.replace(/@s.whatsapp.net/, '')) ||
+      global.owner?.some(o => o[0] === m.sender.replace(/@s.whatsapp.net/, '')) ||
+      global.mods?.includes(m.sender.replace(/@s.whatsapp.net/, ''))
 
     if (!isModSender) return conn.reply(m.chat, `🚫 No tienes permisos para usar *${usedPrefix}${command}*.`, m)
 

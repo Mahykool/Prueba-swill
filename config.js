@@ -228,15 +228,17 @@ export default {
   APIKeys: global.APIKeys
 }
 
-import fs from 'fs'
+// Cargar mods.json usando la importación de fs ya presente al inicio del archivo
 const pathMods = 'src/database/mods.json'
 try {
   const raw = fs.readFileSync(pathMods, 'utf8') || '[]'
   const arr = JSON.parse(raw)
-  global.mods = Array.isArray(arr) ? arr.map(x => {
-    const s = String(x)
-    return s.endsWith('@s.whatsapp.net') ? s : `${s.replace(/\D/g,'')}@s.whatsapp.net`
-  }).filter(Boolean) : []
+  global.mods = Array.isArray(arr)
+    ? arr.map(x => {
+        const s = String(x)
+        return s.endsWith('@s.whatsapp.net') ? s : `${s.replace(/\D/g, '')}@s.whatsapp.net`
+      }).filter(Boolean)
+    : []
   console.log('Loaded mods:', global.mods)
 } catch (e) {
   console.error('Error loading mods.json', e)

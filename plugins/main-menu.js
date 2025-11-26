@@ -1,9 +1,5 @@
-// ✦ Menú Oficial LATAM ✦ Swill v3.4.0
+// ✦ Menú Oficial LATAM ✦ Swill v3.6.0
 // Diseñado por Mahykol ✦
-
-// ────────────────────────────────
-// Estilo minimalista y estético
-// ────────────────────────────────
 
 import { existsSync } from 'fs'
 import { join } from 'path'
@@ -16,9 +12,9 @@ let handler = async (m, { conn, usedPrefix: _p }) => {
       .map(p => ({
         help: Array.isArray(p.help) ? p.help : p.help ? [p.help] : [],
         tags: Array.isArray(p.tags) ? p.tags : p.tags ? [p.tags] : [],
+        desc: p.desc || null
       }))
 
-    // Encabezado estético
     let menuText = `✦ LATAM ✦ Swill ─ Menú Principal ✦
 
 🌐 *Información & Sistema*
@@ -30,12 +26,15 @@ let handler = async (m, { conn, usedPrefix: _p }) => {
 🛠️ *Herramientas & Avanzado*
 🔎 *Búsqueda & Social*
 ⭐ *Premium & Custom*
+🛡️ *Staff & Moderación*
+📚 *Roles & Permisos*
 👑 *Owner & Creador*
 
 ────────────────────────────
 Diseñado por Mahykol ✦ Swill
 `
 
+    // Categorías organizadas
     const categories = {
       '🌐 INFO': ['main', 'info'],
       '🤖 INTELIGENCIA': ['bots', 'ia'],
@@ -47,9 +46,44 @@ Diseñado por Mahykol ✦ Swill
       '🛠️ TOOLS': ['tools', 'advanced'],
       '🔎 BÚSQUEDA': ['search', 'buscador'],
       '⭐ PREMIUM': ['fun', 'premium', 'social', 'custom'],
+      '🛡️ STAFF': ['staff', 'mod'],
+      '📚 ROLES': ['roles'],
       '👑 OWNER': ['owner', 'creador'],
     }
 
+    // Iconos por comando
+    const icons = {
+      // STAFF
+      'modmenu': '🛡️',
+      'mods': '📋',
+      'addmod': '➕',
+      'removemod': '➖',
+
+      // ROLES
+      'misroles': '🧩',
+      'mipermisos': '🔐',
+      'roles': '📚',
+      'rolesinfo': 'ℹ️',
+      'rolinfo': '📘',
+    }
+
+    // Descripciones cortas por comando
+    const descriptions = {
+      // STAFF
+      'modmenu': 'Panel de moderación y herramientas del staff.',
+      'mods': 'Lista completa de moderadores.',
+      'addmod': 'Agregar un nuevo moderador.',
+      'removemod': 'Remover un moderador existente.',
+
+      // ROLES
+      'misroles': 'Muestra tus roles actuales.',
+      'mipermisos': 'Muestra tus permisos activos.',
+      'roles': 'Lista de roles disponibles.',
+      'rolesinfo': 'Información general de todos los roles.',
+      'rolinfo': 'Información detallada de un rol específico.',
+    }
+
+    // Construcción del menú dinámico
     for (let catName in categories) {
       let catTags = categories[catName]
       let comandos = help.filter(menu => menu.tags.some(tag => catTags.includes(tag)))
@@ -57,8 +91,11 @@ Diseñado por Mahykol ✦ Swill
       if (comandos.length) {
         menuText += `\n✦ ${catName} ✦\n`
         let uniqueCommands = [...new Set(comandos.flatMap(menu => menu.help))]
+
         for (let cmd of uniqueCommands) {
-          menuText += `➤ \`${_p}${cmd}\`\n`
+          const icon = icons[cmd] || '➤'
+          const desc = descriptions[cmd] ? `   • ${descriptions[cmd]}\n` : ''
+          menuText += `${icon} \`${cmd}\`\n${desc}`
         }
       }
     }
@@ -82,26 +119,6 @@ Diseñado por Mahykol ✦ Swill
           url: 'https://chat.whatsapp.com/K02sv6Fm87fBQvlNKIGOQB' 
         })
       },
-
-      // ────────────────────────────────
-      // Espacios reservados (no visibles)
-      // ────────────────────────────────
-      /*
-      {
-        name: 'cta_url',
-        buttonParamsJson: JSON.stringify({ 
-          display_text: '💻 Hosting Oficial', 
-          url: 'https://dash.quintillisas.com' 
-        })
-      },
-      {
-        name: 'cta_url',
-        buttonParamsJson: JSON.stringify({ 
-          display_text: '📲 Web Oficial Bot', 
-          url: 'https://web.quintillisas.com' 
-        })
-      }
-      */
     ]
 
     let header
@@ -117,7 +134,7 @@ Diseñado por Mahykol ✦ Swill
 
     const interactiveMessage = proto.Message.InteractiveMessage.fromObject({
       body: proto.Message.InteractiveMessage.Body.fromObject({ text: menuText }),
-      footer: proto.Message.InteractiveMessage.Footer.fromObject({ text: '✦ Sistema Swill v3.4.0 ✦' }),
+      footer: proto.Message.InteractiveMessage.Footer.fromObject({ text: '✦ Sistema Swill v3.6.0 ✦' }),
       header,
       nativeFlowMessage: proto.Message.InteractiveMessage.NativeFlowMessage.fromObject({
         buttons: nativeButtons

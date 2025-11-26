@@ -44,6 +44,6 @@ npm install
 npm start
 ```
 
-### **`Mahukol ᴘʀᴏᴘɪᴇᴛᴀʀɪᴏ ᴅᴇʟ ᴘʀᴏʏᴇᴄᴛᴏ`**
+### **`Mahykol ᴘʀᴏᴘɪᴇᴛᴀʀɪᴏ ᴅᴇʟ ᴘʀᴏʏᴇᴄᴛᴏ`**
 <a
-href="https://github.com/leoxito"><img src="https://github.com/leoxito.png" width="130" height="130" alt="xzzys26"/></a>
+href="LINK"><img src="LINKPNG" width="130" height="130" alt="xzzys26"/></a>

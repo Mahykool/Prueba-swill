@@ -1,108 +1,99 @@
-// plugins/kick.js - Parche final con normalización y comprobaciones
-var handler = async (m, { conn, usedPrefix, command }) => {
-  // Usa el helper global si existe, si no, define uno local
-  const toJid = typeof global.toJid === 'function' ? global.toJid : (jidOrNum) => {
-    if (!jidOrNum) return null
-    jidOrNum = String(jidOrNum)
-    if (jidOrNum.endsWith('@s.whatsapp.net') || jidOrNum.endsWith('@g.us')) return jidOrNum
-    const onlyNums = jidOrNum.replace(/[^0-9]/g, '')
-    return onlyNums.length ? `${onlyNums}@s.whatsapp.net` : null
+// ✦ Plugin Kick / Ban LATAM ✦ Swill
+// Diseñado por Mahykol ✦
+
+import { requirePermission } from '../lib/permissions-middleware.js'
+
+var handler = async (m, { conn, participants, usedPrefix, command }) => {
+  // ✅ Validación de permisos (sin tocar el handler)
+  try {
+    requirePermission(m, 'moderacion_avanzada')
+  } catch {
+    return conn.reply(m.chat, '🚫 No tienes permisos para usar este comando.', m)
   }
 
-  // Resolver objetivo: m.mentionedJid -> quoted -> args (si usas args)
-  let mentionedJid = Array.isArray(m.mentionedJid) && m.mentionedJid.length ? m.mentionedJid[0] : null
-  let user = mentionedJid || (m.quoted && (m.quoted.sender || m.quoted.key?.participant)) || null
-  user = toJid(user)
+  // ✅ Resolver usuario objetivo
+  let user = m.mentionedJid?.[0]
+    || m.quoted?.sender
+    || null
 
-  // Intentar extraer número desde args si no hay mención ni citado
-  if (!user && m.text) {
-    const parts = m.text.trim().split(/\s+/)
-    if (parts.length > 1) {
-      const maybe = parts[1].replace(/\D/g, '')
-      if (maybe.length) user = toJid(maybe)
-    }
+  if (!user) {
+    return conn.reply(
+      m.chat,
+      `⚠️ Debes *mencionar* o *responder* a un usuario para expulsarlo.`,
+      m
+    )
   }
-
-  if (!user) return conn.reply(m.chat, `⚠️ Debes *mencionar* o *responder* a un usuario para expulsarlo.`, m)
 
   try {
-    // Obtener metadata del grupo (asegura participants actualizados)
     const groupInfo = await conn.groupMetadata(m.chat)
-    const participants = Array.isArray(groupInfo?.participants) ? groupInfo.participants : []
-    const ownerGroup = toJid(groupInfo?.owner) || toJid(String(m.chat).split`-`[0])
-    const ownerBot = Array.isArray(global.owner) && global.owner[0] ? toJid(global.owner[0][0]) : null
+    const ownerGroup = groupInfo.owner || m.chat.split`-`[0] + '@s.whatsapp.net'
+    const ownerBot = global.owner?.[0]?.[0] + '@s.whatsapp.net'
 
-    // Verificar si el usuario objetivo es admin (considera varios formatos)
-    const isAdminTarget = participants.some(p => {
-      const pid = p.id || p.jid || p.participant
-      const adminFlag = p.admin
-      return toJid(pid) === user && (adminFlag === 'admin' || adminFlag === 'superadmin' || adminFlag === true)
-    })
+    const isAdminTarget = participants.some(p => p.id === user && p.admin)
 
-    // Normalizar sender y comparar con roles guardados (usar arrays JID completos)
-    const senderJid = toJid(m.sender)
-    const roownerJids = Array.isArray(global.roownerJids) ? global.roownerJids : (Array.isArray(global.roowner) ? global.roowner.map(n => `${n}@s.whatsapp.net`) : [])
-    const ownerJids = Array.isArray(global.ownerJids) ? global.ownerJids : (Array.isArray(global.owner) ? global.owner.map(o => `${o[0]}@s.whatsapp.net`) : [])
-    const mods = Array.isArray(global.mods) ? global.mods : []
+    // ✅ Roles administrativos protegidos (NO se pueden expulsar)
+    const isRowner   = global.roowner?.includes(user)
+    const isOwnerBot = global.owner?.some(o => o[0] === user)
+    const isMod      = global.mods?.includes(user)
 
-    const isModSender =
-      roownerJids.includes(senderJid) ||
-      ownerJids.includes(senderJid) ||
-      mods.includes(senderJid)
-
-    if (!isModSender) return conn.reply(m.chat, `🚫 No tienes permisos para usar *${usedPrefix}${command}*.`, m)
-
-    // Protecciones básicas
-    const botJid = toJid(conn.user?.id || conn.user?.jid)
-    if (user === botJid) return conn.reply(m.chat, `🤖 No puedo eliminar al *bot* del grupo.`, m)
-    if (user === ownerGroup) return conn.reply(m.chat, `👑 No puedo eliminar al *propietario del grupo*.`, m)
-    if (ownerBot && user === ownerBot) return conn.reply(m.chat, `🛡️ No puedo eliminar al *propietario del bot*.`, m)
-    if (isAdminTarget) return conn.reply(m.chat, `⚔️ No puedes eliminar a un *admin* del grupo.`, m)
-
-    // Verificar que el bot sea admin
-    const botParticipant = participants.find(p => toJid(p.id || p.jid || p.participant) === botJid)
-    const botIsAdmin = botParticipant && (botParticipant.admin === 'admin' || botParticipant.admin === 'superadmin' || botParticipant.admin === true)
-    if (!botIsAdmin) return conn.reply(m.chat, '❌ Necesito ser admin para expulsar usuarios.', m)
-
-    // Verificar que el target esté en el grupo
-    const targetInGroup = participants.some(p => toJid(p.id || p.jid || p.participant) === user)
-    if (!targetInGroup) return conn.reply(m.chat, '❌ El usuario no está en este grupo.', m)
-
-    // Resolver nombre del usuario
-    let userName = await conn.getName(user).catch(() => null) || (user.split('@')[0])
-
-    // Ejecutar expulsión
-    await conn.groupParticipantsUpdate(m.chat, [user], 'remove')
-
-    // Mensaje con mención
-    await conn.sendMessage(m.chat, {
-      text: `⛔️ Usuario *${userName}* ha sido expulsado correctamente ✅`,
-      mentions: [user]
-    }, { quoted: m })
-
-    // Registrar en admin-log si existe la función
-    if (typeof global.appendAdminLog === 'function') {
-      try {
-        await global.appendAdminLog({
-          action: 'kick',
-          actor: senderJid,
-          target: user,
-          chat: m.chat,
-          time: new Date().toISOString(),
-          reason: `${usedPrefix}${command}`
-        })
-      } catch (err) { console.error('appendAdminLog error', err) }
+    // ✅ No expulsar al bot
+    if (user === conn.user.jid) {
+      return conn.reply(m.chat, `🤖 No puedo eliminar al *bot*.`, m)
     }
 
+    // ✅ No expulsar al ROOWNER
+    if (isRowner) {
+      return conn.reply(m.chat, `👑 No puedo eliminar al *ROOWNER* del bot.`, m)
+    }
+
+    // ✅ No expulsar al owner del bot
+    if (isOwnerBot) {
+      return conn.reply(m.chat, `🛡️ No puedo eliminar al *propietario del bot*.`, m)
+    }
+
+    // ✅ No expulsar al owner del grupo
+    if (user === ownerGroup) {
+      return conn.reply(m.chat, `👑 No puedo eliminar al *propietario del grupo*.`, m)
+    }
+
+    // ✅ No expulsar admins del grupo
+    if (isAdminTarget) {
+      return conn.reply(m.chat, `⚔️ No puedes eliminar a un *admin* del grupo*.`, m)
+    }
+
+    // ✅ No expulsar MODS del bot
+    if (isMod) {
+      return conn.reply(m.chat, `🛡️ No puedes eliminar a un *MOD* del bot.`, m)
+    }
+
+    // ✅ A partir de aquí:
+    // - Puedes expulsar usuarios sin rol
+    // - Y usuarios con roles “comunes”: premium, spa, vip, etc.
+
+    await conn.groupParticipantsUpdate(m.chat, [user], 'remove')
+
+    const userName = await conn.getName(user)
+
+    await conn.sendMessage(
+      m.chat,
+      {
+        text: `⛔️ Usuario *${userName}* ha sido expulsado correctamente ✅`,
+        mentions: [user]
+      },
+      { quoted: m }
+    )
   } catch (e) {
-    console.error('kick handler error:', e)
-    conn.reply(m.chat, `⚠️ Error al expulsar al usuario.\nUsa *${usedPrefix}report* para informarlo.\n\n${e.message || e}`, m)
+    conn.reply(
+      m.chat,
+      `⚠️ Error al expulsar al usuario.\n${e.message}`,
+      m
+    )
   }
 }
 
 handler.help = ['kick']
 handler.tags = ['group']
-handler.command = ['kick', 'echar', 'hechar', 'sacar', 'ban']
+handler.command = ['kick', 'echar', 'hechar', 'sacar', 'ban'] // 👈 Aquí ban es alias de kick
 handler.group = true
 handler.botAdmin = true
 

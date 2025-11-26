@@ -14,20 +14,22 @@ global.__dirname = (url) => dirname(fileURLToPath(url));
 // Configuraciones principales
 // =======================
 
-// Dueño raíz (máxima autoridad)
-global.roowner = ['56969066865@s.whatsapp.net']
+// Dueño raíz (máxima autoridad) — usar solo números sin @s.whatsapp.net
+global.roowner = ['56969066865'] // agrega aquí los números que pueden dar/quitar mods
 
 // Lista de co-dueños (solo uno más aparte de ti)
+// Formato: [ ['56912345678', 'Nombre', true], ... ]
 global.owner = [
-  ['56969066865@s.whatsapp.net', 'Mahykol 👑 Creador', true],   // Tu número y título especial
-  ['569XXXXXXXX@s.whatsapp.net', 'Co-Dueño', true]              // Nuevo co-dueño (reemplaza XXXXXXXX por el número real)
+  ['56969066865', 'Mahykol 👑 Creador', true],   // Tu número y título especial
+  ['569XXXXXXXX', 'Co-Dueño', true]             // Reemplaza XXXXXXXX por el número real (sin @)
 ]
 
 // Moderadores (admin virtuales: pueden banear/kickear)
 import path from 'path'
 
 const modsPath = path.join(process.cwd(), 'src', 'database', 'mods.json')
-const normalize = n => String(n || '').replace(/@s\.whatsapp\.net/g, '') + '@s.whatsapp.net'
+// Normalizador: convierte cualquier entrada a 569XXXXXXXX@s.whatsapp.net
+const normalize = n => String(n || '').replace(/@s\.whatsapp\.net/g, '').replace(/\D/g, '') + '@s.whatsapp.net'
 
 try {
   const raw = require(modsPath)
@@ -35,7 +37,6 @@ try {
 } catch (e) {
   global.mods = []
 }
-
 
 // Suittag y prems (privilegios secundarios)
 global.suittag = [
@@ -45,9 +46,7 @@ global.prems = [
   '56961199174@s.whatsapp.net'
 ]
 
-
 global.botNumber = '56900000000' // ← Cambiar este número según el que conecte el bot
-
 
 // Información del bot 
 global.libreria = 'Baileys'
@@ -63,7 +62,6 @@ global.SwillJadibts = true       // activación de multi-sesión
 global.Choso = true
 global.prefix = ['.', '!', '/', '#', '%']
 global.apikey = 'SwillIA-Key'    // clave principal para APIs
-
 
 // Branding y créditos
 global.packname = 'Swill Stickers 🌙'
@@ -131,7 +129,6 @@ global.SIPUTZX_AI = {
   queryParam: 'query',
   headers: { accept: '*/*' }
 }
-
 
 global.chatDefaults = {
   isBanned: false,       // Si el chat está baneado

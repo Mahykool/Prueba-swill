@@ -1,12 +1,41 @@
-// ✦ Menú Oficial LATAM ✦ Swill v3.7.0
+// ✦ Menú Oficial LATAM ✦ Swill v3.8.0
 // Diseñado por Mahykol ✦
 
 import { existsSync } from 'fs'
 import { join } from 'path'
 import { prepareWAMessageMedia, generateWAMessageFromContent, proto } from '@whiskeysockets/baileys'
 
+import { getRoleInfo } from '../lib/lib-roles.js'
+import { hasPermission, listAllPermissions } from '../lib/permissions-middleware.js'
+
 let handler = async (m, { conn, usedPrefix: _p }) => {
   try {
+    const user = m.sender
+
+    // ✅ Obtener rol del usuario
+    const role = getRoleInfo(user)
+
+    // ✅ Obtener permisos activos
+    const allPerms = listAllPermissions()
+    const activePerms = allPerms.filter(p => hasPermission(user, p))
+
+    const permsText = activePerms.length
+      ? activePerms.map(p => `• ${p}`).join('\n')
+      : '• Sin permisos especiales'
+
+    // ✅ Encabezado dinámico
+    let headerText = `
+${role.icon || '🔹'} *${role.name}*
+${role.description}
+
+🔐 *Permisos activos:*
+${permsText}
+
+────────────────────────────
+✦ LATAM ✦ Swill ─ Menú Principal ✦
+`
+
+    // ✅ Construcción del menú dinámico
     let help = Object.values(global.plugins)
       .filter(p => !p.disabled)
       .map(p => ({
@@ -15,7 +44,7 @@ let handler = async (m, { conn, usedPrefix: _p }) => {
         desc: p.desc || null
       }))
 
-    let menuText = `✦ LATAM ✦ Swill ─ Menú Principal ✦
+    let menuText = headerText + `
 
 🌐 *Información & Sistema*
 🤖 *Inteligencia & Bots*
@@ -34,7 +63,7 @@ let handler = async (m, { conn, usedPrefix: _p }) => {
 Diseñado por Mahykol ✦ Swill
 `
 
-    // Categorías organizadas
+    // ✅ Categorías organizadas
     const categories = {
       '🌐 INFO': ['main', 'info'],
       '🤖 INTELIGENCIA': ['bots', 'ia'],
@@ -51,7 +80,7 @@ Diseñado por Mahykol ✦ Swill
       '👑 OWNER': ['owner', 'creador'],
     }
 
-    // Iconos por comando
+    // ✅ Iconos por comando
     const icons = {
       // STAFF
       'modmenu': '🛡️',
@@ -78,7 +107,7 @@ Diseñado por Mahykol ✦ Swill
       'rolinfo': '📘',
     }
 
-    // Descripciones cortas por comando
+    // ✅ Descripciones cortas
     const descriptions = {
       // STAFF
       'modmenu': 'Panel de moderación y herramientas del staff.',
@@ -105,7 +134,7 @@ Diseñado por Mahykol ✦ Swill
       'rolinfo': 'Información detallada de un rol específico.',
     }
 
-    // Construcción del menú dinámico
+    // ✅ Construcción del menú por categorías
     for (let catName in categories) {
       let catTags = categories[catName]
       let comandos = help.filter(menu => menu.tags.some(tag => catTags.includes(tag)))
@@ -151,4 +180,31 @@ Diseñado por Mahykol ✦ Swill
         imageMessage: media.imageMessage
       })
     } else {
-      header = proto.Message.InteractiveMessage.Header
+      header = proto.Message.InteractiveMessage.Header.fromObject({ hasMediaAttachment: false })
+    }
+
+    const interactiveMessage = proto.Message.InteractiveMessage.fromObject({
+      body: proto.Message.InteractiveMessage.Body.fromObject({ text: menuText }),
+      footer: proto.Message.InteractiveMessage.Footer.fromObject({ text: '✦ Sistema Swill v3.8.0 ✦' }),
+      header,
+      nativeFlowMessage: proto.Message.InteractiveMessage.NativeFlowMessage.fromObject({
+        buttons: nativeButtons
+      })
+    })
+
+    const msg = generateWAMessageFromContent(m.chat, { interactiveMessage }, { userJid: conn.user.jid, quoted: m })
+    await conn.relayMessage(m.chat, msg.message, { messageId: msg.key.id })
+
+  } catch (e) {
+    console.error('❌ Error en el menú:', e)
+    await conn.sendMessage(m.chat, {
+      text: `🍙 *Menú Básico LATAM ✦ Swill*\n\n• ${_p}menu - Menú principal\n• ${_p}ping - Estado del bot\n• ${_p}prefijos - Ver prefijos\n\n⚠️ *Error:* ${e.message}`
+    }, { quoted: m })
+  }
+}
+
+handler.help = ['menu','help']
+handler.tags = ['main']
+handler.command = ['Swill', 'menu', 'help']
+
+export default handler

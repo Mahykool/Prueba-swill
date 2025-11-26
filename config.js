@@ -1,4 +1,3 @@
-// config.js (implementado completo)
 import { watchFile, unwatchFile } from 'fs'
 import chalk from 'chalk'
 import { fileURLToPath, pathToFileURL } from 'url'
@@ -7,52 +6,39 @@ import * as cheerio from 'cheerio'
 import fetch from 'node-fetch'
 import axios from 'axios'
 import moment from 'moment-timezone'
-import { dirname, resolve } from 'path'
+import { dirname } from 'path'
 
-/**
- * Configuración centralizada y segura
- * - Normaliza números
- * - Usa variables de entorno para claves sensibles
- * - Import seguro de lib-roles con pathToFileURL
- * - Shim de compatibilidad para global.* (no rompe si falla)
- */
+global.__dirname = (url) => dirname(fileURLToPath(url));
 
-// __dirname normalizado
-global.__dirname = dirname(fileURLToPath(import.meta.url))
+// =======================
+// Configuraciones principales
+// =======================
 
-// Helper de normalización de números (sin caracteres)
-const normalizeNum = n => String(n || '').replace(/\D/g, '')
+// Dueño raíz (máxima autoridad)
+global.roowner = ['56969066865@s.whatsapp.net']
 
-// Helper global para convertir a JID completo
-global.toJid = (jidOrNum) => {
-  if (!jidOrNum) return null
-  jidOrNum = String(jidOrNum)
-  if (jidOrNum.endsWith('@s.whatsapp.net') || jidOrNum.endsWith('@g.us')) return jidOrNum
-  const only = jidOrNum.replace(/\D/g, '')
-  return only ? `${only}@s.whatsapp.net` : null
-}
+// Lista de co-dueños
+global.owner = [
+  ['56969066865@s.whatsapp.net', 'Mahykol 👑 Creador', true],
+  ['569XXXXXXXX@s.whatsapp.net', 'Co-Dueño', true]
+]
 
-// Valores semilla (puedes mantenerlos aquí como fallback)
-// Usar solo números sin @s.whatsapp.net
-global._seeds = {
-  roowner: ['56969066865'],
-  owner: [
-    ['56969066865', 'Mahykol 👑 Creador', true],
-    ['569XXXXXXXX', 'Co-Dueño', true]
-  ]
-}
+// Moderadores
+global.mods = [
+  '56961199174@s.whatsapp.net'
+]
 
-// Normalizar seeds al arrancar (mantener formato numérico para compatibilidad interna)
-global.roowner = (global._seeds.roowner || []).map(normalizeNum)
-global.owner = (global._seeds.owner || []).map(o => [normalizeNum(o[0]), o[1] || '', !!o[2]])
+// Suittag y prems
+global.suittag = [
+  '56961199174@s.whatsapp.net'
+]
+global.prems = [
+  '56961199174@s.whatsapp.net'
+]
 
-// Variables derivadas con JIDs completos para comparaciones
-global.roownerJids = (global.roowner || []).map(n => `${n}@s.whatsapp.net`)
-global.ownerJids = (global.owner || []).map(o => `${o[0]}@s.whatsapp.net`)
-global.ownerNames = (global.owner || []).map(o => o[1] || null)
+global.botNumber = '56900000000'
 
-// Configs básicas del bot
-global.botNumber = normalizeNum('56900000000') // cambiar por el número real
+// Información del bot
 global.libreria = 'Baileys'
 global.baileys = 'V 6.7.9'
 global.languaje = 'Español'
@@ -65,7 +51,7 @@ global.jadi = 'jadibts'
 global.SwillJadibts = true
 global.Choso = true
 global.prefix = ['.', '!', '/', '#', '%']
-global.apikey = process.env.SWILL_API_KEY || 'SwillIA-Key'
+global.apikey = 'SwillIA-Key'
 
 // Branding y créditos
 global.packname = 'Swill Stickers 🌙'
@@ -85,7 +71,6 @@ global.moneda = 'SwillCoins'
 global.multiplier = 69
 global.maxwarn = 3
 
-// Librerías expuestas (si las necesitas globalmente)
 global.cheerio = cheerio
 global.fs = fs
 global.fetch = fetch
@@ -104,7 +89,7 @@ global.channel2 = ''
 global.md = ''
 global.correo = ''
 
-// APIs y claves (usar variables de entorno en producción)
+// APIs
 global.APIs = {
   ryzen: 'https://api.ryzendesu.vip',
   xteam: 'https://api.xteam.xyz',
@@ -116,11 +101,11 @@ global.APIs = {
 }
 
 global.APIKeys = {
-  'https://api.xteam.xyz': process.env.XTEAM_KEY || 'YOUR_XTEAM_KEY',
-  'https://api.lolhuman.xyz': process.env.LOLHUMAN_KEY || 'API_KEY',
-  'https://api.betabotz.eu.org': process.env.BETABOTZ_KEY || 'API_KEY',
-  'https://mayapi.ooguy.com': process.env.MAYAPI_KEY || 'may-f53d1d49',
-  'https://api.swill.com': process.env.SWILLAPI_KEY || ''
+  'https://api.xteam.xyz': 'YOUR_XTEAM_KEY',
+  'https://api.lolhuman.xyz': 'API_KEY',
+  'https://api.betabotz.eu.org': 'API_KEY',
+  'https://mayapi.ooguy.com': 'may-f53d1d49',
+  'https://api.swill.com': ''
 }
 
 // Endpoints IA
@@ -131,7 +116,28 @@ global.SIPUTZX_AI = {
   headers: { accept: '*/*' }
 }
 
-// Chat defaults
+// =======================
+// Sistema de permisos
+// =======================
+global.permissions = {
+  administrativos: [
+    'gestionar_roles',       // add-mod, remove-mod, list-mods
+    'moderacion_avanzada',   // kick, ban
+    'configuracion_global',
+    'gestionar_plugins',
+    'ver_logs',
+    'reiniciar_bot'
+  ],
+  comunes: [
+    'ver_ayuda',
+    'usar_stickers',
+    'utilidades',
+    'multimedia',
+    'interacciones'
+  ]
+}
+
+// Defaults de chat
 global.chatDefaults = {
   isBanned: false,
   sAutoresponder: '',
@@ -157,90 +163,20 @@ global.chatDefaults = {
   antitoxic: false
 }
 
-// -----------------------------
-// Shim de compatibilidad (sincroniza global.* desde lib-roles)
-// -----------------------------
-;(async () => {
-  try {
-    // Import seguro de lib-roles (ajusta la ruta si tu estructura es distinta)
-    const rolesUrl = pathToFileURL(new URL('./lib/lib-roles.js', import.meta.url).pathname).href
-    const rolesLib = await import(rolesUrl)
-    const { listRole } = rolesLib
-
-    const mods = listRole('mods') || []
-    const suittag = listRole('suittag') || []
-    const prems = listRole('prems') || []
-    const roowners = listRole('roowner') || []
-    const owners = listRole('owners') || []
-
-    // Asignaciones seguras y normalizadas
-    // Aseguramos que global.mods contenga JIDs completos
-    global.mods = Array.isArray(mods)
-      ? mods.map(m => {
-          const s = String(m)
-          return s.endsWith('@s.whatsapp.net') ? s : `${s.replace(/\D/g, '')}@s.whatsapp.net`
-        }).filter(Boolean)
-      : []
-
-    global.suittag = Array.isArray(suittag) ? suittag.map(s => String(s)) : []
-    global.prems = Array.isArray(prems) ? prems.map(p => String(p)) : []
-
-    // Si roles.json tiene valores, sincronizamos seeds (normalizando números)
-    if (Array.isArray(roowners) && roowners.length) {
-      global.roowner = roowners.map(r => String(r).replace(/@s\.whatsapp\.net/g, '').replace(/\D/g, ''))
-      global.roownerJids = global.roowner.map(n => `${n}@s.whatsapp.net`)
-    }
-    if (Array.isArray(owners) && owners.length) {
-      global.owner = owners.map(o =>
-        Array.isArray(o)
-          ? [String(o[0]).replace(/@s\.whatsapp\.net/g, '').replace(/\D/g, ''), o[1] || '', !!o[2]]
-          : [String(o).replace(/@s\.whatsapp\.net/g, '').replace(/\D/g, ''), '', false]
-      )
-      global.ownerJids = global.owner.map(o => `${o[0]}@s.whatsapp.net`)
-      global.ownerNames = global.owner.map(o => o[1] || null)
-    }
-
-    console.log('Roles shim loaded: mods=', global.mods, 'ownerJids=', global.ownerJids, 'roownerJids=', global.roownerJids)
-  } catch (e) {
-    // No interrumpe el arranque; los plugins nuevos usan lib-roles directamente
-    console.error('Roles shim sync failed:', e && e.stack ? e.stack : e)
-  }
-})()
-
-// Hot-reload del archivo de configuración
 let file = fileURLToPath(import.meta.url)
 watchFile(file, () => {
   unwatchFile(file)
   console.log(chalk.redBright("Update 'config.js'"))
-  try { import(pathToFileURL(file).href + `?update=${Date.now()}`) } catch (err) { console.error(err) }
+  try { import(pathToFileURL(file).href + `?update=${Date.now()}`) } catch {}
 })
 
-// Export de configuración (agrupado para reducir polución global)
+// Export final
 export default {
   prefix: global.prefix,
   owner: global.owner,
-  roowner: global.roowner,
   sessionDirName: global.sessions,
   sessionName: global.sessions,
   botNumber: global.botNumber,
   chatDefaults: global.chatDefaults,
-  APIs: global.APIs,
-  APIKeys: global.APIKeys
-}
-
-// Cargar mods.json usando la importación de fs ya presente al inicio del archivo
-const pathMods = 'src/database/mods.json'
-try {
-  const raw = fs.readFileSync(pathMods, 'utf8') || '[]'
-  const arr = JSON.parse(raw)
-  global.mods = Array.isArray(arr)
-    ? arr.map(x => {
-        const s = String(x)
-        return s.endsWith('@s.whatsapp.net') ? s : `${s.replace(/\D/g, '')}@s.whatsapp.net`
-      }).filter(Boolean)
-    : []
-  console.log('Loaded mods:', global.mods)
-} catch (e) {
-  console.error('Error loading mods.json', e)
-  global.mods = []
+  permissions: global.permissions
 }

@@ -1,4 +1,4 @@
-// config.js (actualizado)
+// config.js (implementado completo)
 import { watchFile, unwatchFile } from 'fs'
 import chalk from 'chalk'
 import { fileURLToPath, pathToFileURL } from 'url'
@@ -23,6 +23,15 @@ global.__dirname = dirname(fileURLToPath(import.meta.url))
 // Helper de normalización de números (sin caracteres)
 const normalizeNum = n => String(n || '').replace(/\D/g, '')
 
+// Helper global para convertir a JID completo
+global.toJid = (jidOrNum) => {
+  if (!jidOrNum) return null
+  jidOrNum = String(jidOrNum)
+  if (jidOrNum.endsWith('@s.whatsapp.net') || jidOrNum.endsWith('@g.us')) return jidOrNum
+  const only = jidOrNum.replace(/\D/g, '')
+  return only ? `${only}@s.whatsapp.net` : null
+}
+
 // Valores semilla (puedes mantenerlos aquí como fallback)
 // Usar solo números sin @s.whatsapp.net
 global._seeds = {
@@ -33,9 +42,14 @@ global._seeds = {
   ]
 }
 
-// Normalizar seeds al arrancar
+// Normalizar seeds al arrancar (mantener formato numérico para compatibilidad interna)
 global.roowner = (global._seeds.roowner || []).map(normalizeNum)
 global.owner = (global._seeds.owner || []).map(o => [normalizeNum(o[0]), o[1] || '', !!o[2]])
+
+// Variables derivadas con JIDs completos para comparaciones
+global.roownerJids = (global.roowner || []).map(n => `${n}@s.whatsapp.net`)
+global.ownerJids = (global.owner || []).map(o => `${o[0]}@s.whatsapp.net`)
+global.ownerNames = (global.owner || []).map(o => o[1] || null)
 
 // Configs básicas del bot
 global.botNumber = normalizeNum('56900000000') // cambiar por el número real
@@ -160,17 +174,33 @@ global.chatDefaults = {
     const owners = listRole('owners') || []
 
     // Asignaciones seguras y normalizadas
-    global.mods = Array.isArray(mods) ? mods.map(m => String(m)) : []
+    // Aseguramos que global.mods contenga JIDs completos
+    global.mods = Array.isArray(mods)
+      ? mods.map(m => {
+          const s = String(m)
+          return s.endsWith('@s.whatsapp.net') ? s : `${s.replace(/\D/g, '')}@s.whatsapp.net`
+        }).filter(Boolean)
+      : []
+
     global.suittag = Array.isArray(suittag) ? suittag.map(s => String(s)) : []
     global.prems = Array.isArray(prems) ? prems.map(p => String(p)) : []
 
     // Si roles.json tiene valores, sincronizamos seeds (normalizando números)
     if (Array.isArray(roowners) && roowners.length) {
       global.roowner = roowners.map(r => String(r).replace(/@s\.whatsapp\.net/g, '').replace(/\D/g, ''))
+      global.roownerJids = global.roowner.map(n => `${n}@s.whatsapp.net`)
     }
     if (Array.isArray(owners) && owners.length) {
-      global.owner = owners.map(o => Array.isArray(o) ? [String(o[0]).replace(/@s\.whatsapp\.net/g, '').replace(/\D/g, ''), o[1] || '', !!o[2]] : [String(o).replace(/@s\.whatsapp\.net/g, '').replace(/\D/g, ''), '', false])
+      global.owner = owners.map(o =>
+        Array.isArray(o)
+          ? [String(o[0]).replace(/@s\.whatsapp\.net/g, '').replace(/\D/g, ''), o[1] || '', !!o[2]]
+          : [String(o).replace(/@s\.whatsapp\.net/g, '').replace(/\D/g, ''), '', false]
+      )
+      global.ownerJids = global.owner.map(o => `${o[0]}@s.whatsapp.net`)
+      global.ownerNames = global.owner.map(o => o[1] || null)
     }
+
+    console.log('Roles shim loaded: mods=', global.mods, 'ownerJids=', global.ownerJids, 'roownerJids=', global.roownerJids)
   } catch (e) {
     // No interrumpe el arranque; los plugins nuevos usan lib-roles directamente
     console.error('Roles shim sync failed:', e && e.stack ? e.stack : e)

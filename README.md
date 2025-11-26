@@ -1,4 +1,4 @@
-# `👑 Itsuki Nakano - IA V2` ✨
+# `👑 SWILL - V1` ✨
 [![Typing SVG](https://readme-typing-svg.demolab.com?font=Oswald+Code&pause=1000&color=FF69B4&width=435&lines=Bienvenido+al+Repositorio;Itsuki+Nakano+IA+V2;Versión+6.4.1+Oficial;Creado+por+LeoXzzsy;)](https://git.io/typing-svg)
 
 <!-- Banner -->
@@ -13,7 +13,7 @@
 [![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)]()
 [![License](https://img.shields.io/badge/License-MIT-orange.svg)]()
 
-# 🎀 `Itsuki Nakano IA - V2` 🌸
+# 🎀 `SWILL - V1` 🌸
 
 **Bot Multi-Prefijo con Sistema de Comandos Avanzado**  
 *La evolución del bot temático más completo de WhatsApp - ¡Ahora con más potencia y personalización!*
@@ -44,6 +44,6 @@ npm install
 npm start
 ```
 
-### **`ʟᴇᴏ ᴘʀᴏᴘɪᴇᴛᴀʀɪᴏ ᴅᴇʟ ᴘʀᴏʏᴇᴄᴛᴏ`**
+### **`Mahukol ᴘʀᴏᴘɪᴇᴛᴀʀɪᴏ ᴅᴇʟ ᴘʀᴏʏᴇᴄᴛᴏ`**
 <a
 href="https://github.com/leoxito"><img src="https://github.com/leoxito.png" width="130" height="130" alt="xzzys26"/></a>

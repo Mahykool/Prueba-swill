@@ -1,4 +1,4 @@
-// ✦ Menú Oficial LATAM ✦ Swill v3.6.0
+// ✦ Menú Oficial LATAM ✦ Swill v3.7.0
 // Diseñado por Mahykol ✦
 
 import { existsSync } from 'fs'
@@ -59,6 +59,17 @@ Diseñado por Mahykol ✦ Swill
       'addmod': '➕',
       'removemod': '➖',
 
+      // SHOWBAN SYSTEM
+      'showban': '🛑',
+      'deshadowban': '✅',
+      'desmute': '✅',
+      'quitarmute': '✅',
+      'unmute': '✅',
+      'mutelist': '📋',
+      'mutelog': '📄',
+      'mutestatus': '🔍',
+      'clearmutelog': '🧹',
+
       // ROLES
       'misroles': '🧩',
       'mipermisos': '🔐',
@@ -74,6 +85,17 @@ Diseñado por Mahykol ✦ Swill
       'mods': 'Lista completa de moderadores.',
       'addmod': 'Agregar un nuevo moderador.',
       'removemod': 'Remover un moderador existente.',
+
+      // SHOWBAN SYSTEM
+      'showban': 'Mute temporal con tiempo personalizado.',
+      'deshadowban': 'Desmutea al usuario.',
+      'desmute': 'Alias de deshadowban.',
+      'quitarmute': 'Alias de deshadowban.',
+      'unmute': 'Alias de deshadowban.',
+      'mutelist': 'Lista de usuarios muteados.',
+      'mutelog': 'Registro de acciones de mute.',
+      'mutestatus': 'Ver si un usuario está muteado.',
+      'clearmutelog': 'Limpia el registro de mute (solo ROOWNER).',
 
       // ROLES
       'misroles': 'Muestra tus roles actuales.',
@@ -129,31 +151,4 @@ Diseñado por Mahykol ✦ Swill
         imageMessage: media.imageMessage
       })
     } else {
-      header = proto.Message.InteractiveMessage.Header.fromObject({ hasMediaAttachment: false })
-    }
-
-    const interactiveMessage = proto.Message.InteractiveMessage.fromObject({
-      body: proto.Message.InteractiveMessage.Body.fromObject({ text: menuText }),
-      footer: proto.Message.InteractiveMessage.Footer.fromObject({ text: '✦ Sistema Swill v3.6.0 ✦' }),
-      header,
-      nativeFlowMessage: proto.Message.InteractiveMessage.NativeFlowMessage.fromObject({
-        buttons: nativeButtons
-      })
-    })
-
-    const msg = generateWAMessageFromContent(m.chat, { interactiveMessage }, { userJid: conn.user.jid, quoted: m })
-    await conn.relayMessage(m.chat, msg.message, { messageId: msg.key.id })
-
-  } catch (e) {
-    console.error('❌ Error en el menú:', e)
-    await conn.sendMessage(m.chat, {
-      text: `🍙 *Menú Básico LATAM ✦ Swill*\n\n• ${_p}menu - Menú principal\n• ${_p}ping - Estado del bot\n• ${_p}prefijos - Ver prefijos\n\n⚠️ *Error:* ${e.message}`
-    }, { quoted: m })
-  }
-}
-
-handler.help = ['menu','help']
-handler.tags = ['main']
-handler.command = ['Swill', 'menu', 'help']
-
-export default handler
+      header = proto.Message.InteractiveMessage.Header

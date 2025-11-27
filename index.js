@@ -1,22 +1,23 @@
-import { fileURLToPath, pathToFileURL } from 'url'
-import path from 'path'
-import os from 'os'
-import fs from 'fs'
-import chalk from 'chalk'
-import readline from 'readline'
-import qrcode from 'qrcode-terminal'
-import libPhoneNumber from 'google-libphonenumber'
-import cfonts from 'cfonts'
-import pino from 'pino'
-import { useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion, Browsers, jidNormalizedUser } from '@whiskeysockets/baileys'
-import { makeWASocket, protoType, serialize } from './lib/simple.js'
-import config from './config.js'
-import { sendWelcomeOrBye } from './lib/welcome.js'
-import { loadDatabase, saveDatabase, DB_PATH } from './lib/db.js'
-import { watchFile } from 'fs'
-import { yukiJadiBot } from './plugins/sockets-serbot.js'
-// NUEVO: sincronizar roles dinámicos
-import { syncRolesToGlobals } from './lib/roles-sync.js'
+const { fileURLToPath, pathToFileURL } = require('url')
+const path = require('path')
+const os = require('os')
+const fs = require('fs')
+const chalk = require('chalk')
+const readline = require('readline')
+const qrcode = require('qrcode-terminal')
+const libPhoneNumber = require('google-libphonenumber')
+const cfonts = require('cfonts')
+const pino = require('pino')
+const { useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion, Browsers, jidNormalizedUser } = require('@whiskeysockets/baileys')
+const { makeWASocket, protoType, serialize } = require('./lib/simple.js')
+const config = require('./config.js')
+const { sendWelcomeOrBye } = require('./lib/welcome.js')
+const { loadDatabase, saveDatabase, DB_PATH } = require('./lib/db.js')
+const { watchFile } = require('fs')
+const { yukiJadiBot } = require('./plugins/sockets-serbot.js')
+
+// ✅ Ahora sí es válido
+const { syncRolesToGlobals } = require('./lib/roles-sync.js')
 
 const phoneUtil = (libPhoneNumber.PhoneNumberUtil || libPhoneNumber.default?.PhoneNumberUtil).getInstance()
 

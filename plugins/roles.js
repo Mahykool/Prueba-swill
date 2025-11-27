@@ -50,7 +50,7 @@ Para ver tus permisos:
 }
 
 handler.help = ['roles']
-handler.tags = ['info']
+handler.tags = ['roles']
 handler.command = /^roles$/i
 
 export default handler

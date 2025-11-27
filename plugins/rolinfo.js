@@ -92,7 +92,7 @@ var handler = async (m, { conn, args }) => {
 }
 
 handler.help = ['rolinfo <rol>']
-handler.tags = ['info']
+handler.tags = ['roles']
 handler.command = /^rolinfo$/i
 
 export default handler

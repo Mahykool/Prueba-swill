@@ -31,7 +31,7 @@ let handler = async (m, { conn }) => {
 }
 
 handler.help = ['mipermisos']
-handler.tags = ['info']
+handler.tags = ['roles']
 handler.command = /^mipermisos$/i
 
 export default handler

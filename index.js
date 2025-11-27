@@ -826,7 +826,7 @@ ${chalk.magenta('--->')} Número: `)
 // ✅ PARTE 5 — EVENTOS DE CONEXIÓN
 // =========================
 
-sock.ev.on('connection.update', async (update) => {
+global.conn.ev.on('connection.update', async (update) => {
   const { connection, lastDisconnect, qr } = update
 
   // ✅ Conexión abierta
@@ -834,7 +834,7 @@ sock.ev.on('connection.update', async (update) => {
     console.log('✅ Bot conectado exitosamente')
 
     if (typeof sendReconnectionMessage === 'function') {
-      await sendReconnectionMessage(conn)
+      await sendReconnectionMessage(global.conn)
     }
   }
 
@@ -867,11 +867,11 @@ sock.ev.on('connection.update', async (update) => {
   // ✅ Autocompletar botNumber al conectar
   if (connection === 'open') {
     try {
-      sock.__sessionOpenAt = Date.now()
+      global.conn.__sessionOpenAt = Date.now()
 
-      const rawId = sock?.user?.id || ''
+      const rawId = global.conn?.user?.id || ''
       const userJid = rawId ? jidNormalizedUser(rawId) : 'desconocido'
-      const userName = sock?.user?.name || sock?.user?.verifiedName || 'Desconocido'
+      const userName = global.conn?.user?.name || global.conn?.user?.verifiedName || 'Desconocido'
 
       console.log(chalk.green.bold(`[ 🍉 ]  Conectado a: ${userName}`))
 
@@ -910,7 +910,6 @@ sock.ev.on('connection.update', async (update) => {
     }
   }
 })
-
 
 // =========================
 // ✅ PARTE 5 — EVENTOS DE GRUPOS (WELCOME / BYE)

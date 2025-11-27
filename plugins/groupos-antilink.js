@@ -1,4 +1,5 @@
-// 🌸 Itsuki Nakano IA - Sistema Antilink Ultra Fuerte (versión corregida)
+// Sistema Antilink Ultra Fuerte con Shadowban + Ban Definitivo
+// Creado para LATAM ✦ Swill — por Mahykol
 
 let handler = async (m, { conn, args, usedPrefix, command, isAdmin, isBotAdmin }) => {
   const ctxErr = (global.rcanalx || {})
@@ -9,39 +10,37 @@ let handler = async (m, { conn, args, usedPrefix, command, isAdmin, isBotAdmin }
   if (!isAdmin) return conn.reply(m.chat, '⚠️ Solo los administradores pueden usar este comando.', m, ctxErr)
 
   const action = args[0]?.toLowerCase()
+
   if (!global.antilinkStatus) global.antilinkStatus = {}
+  if (!global.antilinkWarnings) global.antilinkWarnings = {}
+  if (!global.shadowban) global.shadowban = {}
+  if (!global.antilinkStrikes) global.antilinkStrikes = {}
 
   if (!action) {
     return conn.reply(m.chat, `
-╭━━━〔 𝐒𝐈𝐒𝐓𝐄𝐌𝐀 𝐀𝐍𝐓𝐈𝐋𝐈𝐍𝐊-𝐍𝐊 🖇️🚫 〕━━━⬣
+╭━━━〔 𝐒𝐈𝐒𝐓𝐄𝐌𝐀 𝐀𝐍𝐓𝐈𝐋𝐈𝐍𝐊 🖇️🚫 〕━━━⬣
 ┃ ➡️ ${usedPrefix}antilink on      → Activar
 ┃ ➡️ ${usedPrefix}antilink off     → Desactivar
 ┃ ➡️ ${usedPrefix}antilink status  → Estado
 ╰━━━━━━━━━━━━━━⬣
 
-> ⚡ *Versión v2 Actualizada* – Protección inteligente con detección avanzada.
+> ⚡ *Versión v3 — Shadowban + Ban Definitivo*
     `.trim(), m, ctxWarn)
   }
 
   switch (action) {
     case 'on':
-    case 'activar':
       global.antilinkStatus[m.chat] = true
       await conn.reply(m.chat, '🛡️ 𝐀𝐍𝐓𝐈𝐋𝐈𝐍𝐊 𝐀𝐂𝐓𝐈𝐕𝐀𝐃𝐎 ✅️', m, ctxOk)
       break
 
     case 'off':
-    case 'desactivar':
-      // Eliminar la entrada para evitar confusiones (asi el before la considerará desactivada)
-      if (global.antilinkStatus && typeof global.antilinkStatus[m.chat] !== 'undefined') {
-        delete global.antilinkStatus[m.chat]
-      }
+      delete global.antilinkStatus[m.chat]
       await conn.reply(m.chat, '🔓 𝐀𝐍𝐓𝐈𝐋𝐈𝐍𝐊 𝐃𝐄𝐒𝐀𝐂𝐓𝐈𝐕𝐀𝐃𝐎 ❌', m, ctxWarn)
       break
 
     case 'status':
-    case 'estado':
-      const status = (global.antilinkStatus && global.antilinkStatus[m.chat]) ? '🟢 𝐀𝐂𝐓𝐈𝐕𝐎' : '🔴 𝐃𝐄𝐒𝐀𝐂𝐓𝐈𝐕𝐀𝐃𝐎'
+      const status = global.antilinkStatus[m.chat] ? '🟢 ACTIVO' : '🔴 DESACTIVADO'
       await conn.reply(m.chat, `🔰 Estado del Antilink: ${status}`, m, ctxOk)
       break
 
@@ -50,106 +49,134 @@ let handler = async (m, { conn, args, usedPrefix, command, isAdmin, isBotAdmin }
   }
 }
 
-// 🌸 Detector Antilink Activo (antes del handler)
+// ✅ SISTEMA ANTILINK — DETECTOR AUTOMÁTICO
 handler.before = async (m, { conn, isAdmin, isBotAdmin }) => {
   try {
     if (m.isBaileys || !m.isGroup) return
     if (!global.antilinkStatus || !global.antilinkStatus[m.chat]) return
 
-    const messageText = m.text || m.caption || ''
-    if (!messageText) return
+    const text = m.text || m.caption || ''
+    if (!text) return
 
-    // PATRONES MÁS FUERTES Y COMPLETOS (restaurados)
-    const linkPatterns = [
-      /https?:\/\/[^\s]*/gi,
-      /www\.[^\s]*/gi,
-      /[a-zA-Z0-9-]+\.[a-zA-Z]{2,}(\/[^\s]*)?/gi,
-      /wa\.me\/[0-9]+/gi,
-      /chat\.whatsapp\.com\/[A-Za-z0-9]+/gi,
-      /t\.me\/[^\s]*/gi,
-      /instagram\.com\/[^\s]*/gi,
-      /facebook\.com\/[^\s]*/gi,
-      /youtube\.com\/[^\s]*/gi,
-      /youtu\.be\/[^\s]*/gi,
-      /twitter\.com\/[^\s]*/gi,
-      /x\.com\/[^\s]*/gi,
-      /discord\.gg\/[^\s]*/gi,
-      /tiktok\.com\/[^\s]*/gi,
-      /bit\.ly\/[^\s]*/gi,
-      /tinyurl\.com\/[^\s]*/gi,
-      /goo\.gl\/[^\s]*/gi,
-      /ow\.ly\/[^\s]*/gi,
-      /buff\.ly\/[^\s]*/gi,
-      /adf\.ly\/[^\s]*/gi,
-      /shorte\.st\/[^\s]*/gi,
-      /snip\.ly\/[^\s]*/gi,
-      /cutt\.ly\/[^\s]*/gi,
-      /is\.gd\/[^\s]*/gi,
-      /v\.gd\/[^\s]*/gi,
-      /cli\.gs\/[^\s]*/gi,
-      /bc\.vc\/[^\s]*/gi,
-      /tr\.im\/[^\s]*/gi,
-      /prettylink\.pro\/[^\s]*/gi,
-      /[a-zA-Z0-9-]+\.blogspot\.[^\s]*/gi,
-      /[a-zA-Z0-9-]+\.wordpress\.[^\s]*/gi,
-      /[a-zA-Z0-9-]+\.weebly\.[^\s]*/gi,
-      /[a-zA-Z0-9-]+\.wixsite\.[^\s]*/gi,
-      /[a-zA-Z0-9-]+\.webnode\.[^\s]*/gi,
-      /[a-zA-Z0-9-]+\.000webhostapp\.[^\s]*/gi,
-      /[a-zA-Z0-9-]+\.github\.io\/[^\s]*/gi,
-      /[a-zA-Z0-9-]+\.netlify\.app\/[^\s]*/gi,
-      /[a-zA-Z0-9-]+\.herokuapp\.com\/[^\s]*/gi,
-      /[a-zA-Z0-9-]+\.glitch\.me\/[^\s]*/gi,
-      /[a-zA-Z0-9-]+\.repl\.co\/[^\s]*/gi,
-      /[a-zA-Z0-9-]+\.vercel\.app\/[^\s]*/gi,
-      /[a-zA-Z0-9-]+\.surge\.sh\/[^\s]*/gi,
-      /[a-zA-Z0-9-]+\.pages\.dev\/[^\s]*/gi,
-      /[a-zA-Z0-9-]+\.onrender\.com\/[^\s]*/gi,
-      /[a-zA-Z0-9-]+\.railway\.app\/[^\s]*/gi,
-      /[a-zA-Z0-9-]+\.fly\.dev\/[^\s]*/gi
-    ]
+    // Inicializar estructuras
+    global.antilinkWarnings[m.chat] = global.antilinkWarnings[m.chat] || {}
+    global.shadowban[m.chat] = global.shadowban[m.chat] || {}
+    global.antilinkStrikes[m.chat] = global.antilinkStrikes[m.chat] || {}
 
-    let hasLink = false
-    let detectedLink = ''
+    const now = Date.now()
 
-    for (const pattern of linkPatterns) {
-      const matches = messageText.match(pattern)
-      if (matches && matches.length > 0) {
-        hasLink = true
-        detectedLink = matches[0]
-        break
+    // ✅ Si el usuario está en shadowban
+    if (global.shadowban[m.chat][m.sender]) {
+      const expires = global.shadowban[m.chat][m.sender]
+
+      if (now < expires) {
+        // Borrar mensaje
+        if (isBotAdmin && m.key) {
+          try {
+            await conn.sendMessage(m.chat, { delete: { remoteJid: m.chat, id: m.key.id, participant: m.sender } })
+          } catch {}
+        }
+        return
+      } else {
+        // ✅ Shadowban expirado → limpiar
+        delete global.shadowban[m.chat][m.sender]
       }
     }
 
-    // Detectar IPs también
-    const ipPattern = /\b(?:\d{1,3}\.){3}\d{1,3}\b/gi
-    if (!hasLink && ipPattern.test(messageText)) {
-      hasLink = true
-      detectedLink = 'Dirección IP detectada'
-    }
+    // ✅ Detectar enlaces
+    const patterns = [
+      /https?:\/\/[^\s]+/gi,
+      /www\.[^\s]+/gi,
+      /chat\.whatsapp\.com\/[A-Za-z0-9]+/gi,
+      /t\.me\/[^\s]+/gi,
+      /instagram\.com\/[^\s]+/gi,
+      /facebook\.com\/[^\s]+/gi,
+      /youtu\.be\/[^\s]+/gi,
+      /youtube\.com\/[^\s]+/gi,
+      /discord\.gg\/[^\s]+/gi,
+      /bit\.ly\/[^\s]+/gi
+    ]
+
+    let hasLink = patterns.some(p => p.test(text))
+
+    // Detectar IP
+    const ipPattern = /\b(?:\d{1,3}\.){3}\d{1,3}\b/
+    if (!hasLink && ipPattern.test(text)) hasLink = true
 
     if (!hasLink) return
     if (isAdmin) return
     if (m.sender === conn.user.jid) return
 
-    // Envío de alerta (formato Itsuki)
-    await conn.sendMessage(m.chat, { 
-      text: `> 💢 𝐄𝐍𝐋𝐀𝐂𝐄 𝐃𝐄𝐓𝐄𝐂𝐓𝐀𝐃𝐎 @${m.sender.split('@')[0]} ⚠️ 𝐄𝐗𝐏𝐔𝐋𝐒𝐈𝐎́𝐍 𝐈𝐍𝐌𝐄𝐃𝐈𝐀𝐓𝐀`,
-      mentions: [m.sender]
-    })
-
-    // Borrar mensaje (si tiene permisos)
+    // ✅ Borrar mensaje
     if (isBotAdmin && m.key) {
       try {
-        await conn.sendMessage(m.chat, { delete: { remoteJid: m.chat, fromMe: false, id: m.key.id, participant: m.sender } })
-      } catch (e) { /* no bloquear si falla */ }
+        await conn.sendMessage(m.chat, { delete: { remoteJid: m.chat, id: m.key.id, participant: m.sender } })
+      } catch {}
     }
 
-    // Expulsar (si tiene permisos)
-    if (isBotAdmin) {
-      try {
-        await conn.groupParticipantsUpdate(m.chat, [m.sender], 'remove')
-      } catch (e) { /* log en consola */ console.error('Expulsión fallida:', e) }
+    // ✅ Aumentar advertencias
+    global.antilinkWarnings[m.chat][m.sender] =
+      (global.antilinkWarnings[m.chat][m.sender] || 0) + 1
+
+    const strikes = global.antilinkWarnings[m.chat][m.sender]
+    const reincidencia = global.antilinkStrikes[m.chat][m.sender] || 0
+
+    // ✅ STRIKE 1
+    if (strikes === 1) {
+      return conn.reply(
+        m.chat,
+        `⚠️ *Advertencia 1/3*\n@${m.sender.split('@')[0]} envió un enlace.\nEvita repetirlo.`,
+        m,
+        { mentions: [m.sender] }
+      )
+    }
+
+    // ✅ STRIKE 2
+    if (strikes === 2) {
+      return conn.reply(
+        m.chat,
+        `⚠️ *Advertencia 2/3*\n@${m.sender.split('@')[0]} vuelve a enviar enlaces.\nLa próxima será sanción.`,
+        m,
+        { mentions: [m.sender] }
+      )
+    }
+
+    // ✅ STRIKE 3 → SHADOWBAN O BAN DEFINITIVO
+    if (strikes >= 3) {
+      // ✅ Si ya tuvo un shadowban → BAN DEFINITIVO
+      if (reincidencia >= 1) {
+        conn.reply(
+          m.chat,
+          `💢 *Ban definitivo*\n@${m.sender.split('@')[0]} reincidió después del shadowban.`,
+          m,
+          { mentions: [m.sender] }
+        )
+
+        if (isBotAdmin) {
+          try {
+            await conn.groupParticipantsUpdate(m.chat, [m.sender], 'remove')
+          } catch {}
+        }
+
+        // limpiar registros
+        delete global.antilinkWarnings[m.chat][m.sender]
+        delete global.shadowban[m.chat][m.sender]
+        delete global.antilinkStrikes[m.chat][m.sender]
+        return
+      }
+
+      // ✅ PRIMERA VEZ → SHADOWBAN 30 MINUTOS
+      const duration = 30 * 60 * 1000 // 30 minutos
+      global.shadowban[m.chat][m.sender] = now + duration
+      global.antilinkStrikes[m.chat][m.sender] = 1
+      global.antilinkWarnings[m.chat][m.sender] = 0
+
+      return conn.reply(
+        m.chat,
+        `⛔ *Shadowban aplicado (30 minutos)*\n@${m.sender.split('@')[0]} ignoró las advertencias.\nSi reincide → *ban definitivo*.`,
+        m,
+        { mentions: [m.sender] }
+      )
     }
 
   } catch (err) {

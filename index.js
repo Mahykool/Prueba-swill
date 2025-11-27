@@ -1,23 +1,21 @@
-const { fileURLToPath, pathToFileURL } = require('url')
-const path = require('path')
-const os = require('os')
-const fs = require('fs')
-const chalk = require('chalk')
-const readline = require('readline')
-const qrcode = require('qrcode-terminal')
-const libPhoneNumber = require('google-libphonenumber')
-const cfonts = require('cfonts')
-const pino = require('pino')
-const { useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion, Browsers, jidNormalizedUser } = require('@whiskeysockets/baileys')
-const { makeWASocket, protoType, serialize } = require('./lib/simple.js')
-const config = require('./config.js')
-const { sendWelcomeOrBye } = require('./lib/welcome.js')
-const { loadDatabase, saveDatabase, DB_PATH } = require('./lib/db.js')
-const { watchFile } = require('fs')
-const { yukiJadiBot } = require('./plugins/sockets-serbot.js')
-
-// ✅ Ahora sí es válido
-const { syncRolesToGlobals } = require('./lib/roles-sync.js')
+import { fileURLToPath, pathToFileURL } from 'url'
+import path from 'path'
+import os from 'os'
+import fs from 'fs'
+import chalk from 'chalk'
+import readline from 'readline'
+import qrcode from 'qrcode-terminal'
+import libPhoneNumber from 'google-libphonenumber'
+import cfonts from 'cfonts'
+import pino from 'pino'
+import { useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion, Browsers, jidNormalizedUser } from '@whiskeysockets/baileys'
+import { makeWASocket, protoType, serialize } from './lib/simple.js'
+import config from './config.js'
+import { sendWelcomeOrBye } from './lib/welcome.js'
+import { loadDatabase, saveDatabase, DB_PATH } from './lib/db.js'
+import { watchFile } from 'fs'
+import { yukiJadiBot } from './plugins/sockets-serbot.js'
+import { syncRolesToGlobals } from './lib/roles-sync.js'
 
 const phoneUtil = (libPhoneNumber.PhoneNumberUtil || libPhoneNumber.default?.PhoneNumberUtil).getInstance()
 
@@ -30,30 +28,16 @@ global.opts = global.opts && typeof global.opts === 'object' ? global.opts : {}
 global.jadi = global.jadi || 'jadibts'
 
 if (!fs.existsSync("./tmp")) {
-  fs.mkdirSync("./tmp");
+  fs.mkdirSync("./tmp")
 }
 
 const CONFIG_PATH = path.join(__dirname, 'config.js')
 watchFile(CONFIG_PATH, async () => {
   try {
     const fresh = (await import('./config.js?update=' + Date.now())).default
-    if (Array.isArray(fresh.prefix)) {
-      global.prefixes = [...fresh.prefix]
-    }
-    if (Array.isArray(fresh.owner)) {
-      global.owner = fresh.owner
-    }
-    const prefStr = Array.isArray(global.prefixes) && global.prefixes.length ? global.prefixes.join(' ') : '-'
-    const ownersStr = Array.isArray(global.owner) && global.owner.length
-      ? global.owner.map(o => Array.isArray(o) ? (o[0] || '') : (o || '')).filter(Boolean).join(', ')
-      : '-'
-    const cfgInfo = `\n╭─────────────────────────────◉
-│ ${chalk.black.bgRedBright.bold('        🔁 CONFIG ACTUALIZADA        ')}
-│ 「 🗂 」${chalk.cyan('Archivo: config.js')}
-│ 「 🧩 」${chalk.yellow('Prefijos: ')}${chalk.white(prefStr)}
-│ 「 👑 」${chalk.yellow('Owners:   ')}${chalk.white(ownersStr)}
-╰─────────────────────────────◉\n`
-    console.log(cfgInfo)
+    if (Array.isArray(fresh.prefix)) global.prefixes = [...fresh.prefix]
+    if (Array.isArray(fresh.owner)) global.owner = fresh.owner
+    console.log(chalk.green('[Config] Recargada correctamente'))
   } catch (e) {
     console.log('[Config] Error recargando config:', e.message)
   }
@@ -61,14 +45,17 @@ watchFile(CONFIG_PATH, async () => {
 
 global.plugins = {}
 global.commandIndex = {}
+
 async function loadPlugins() {
   global.plugins = {}
   global.commandIndex = {}
+
   const PLUGIN_PATH = path.join(__dirname, 'plugins')
   if (!fs.existsSync(PLUGIN_PATH)) {
     console.log('[Plugins] Carpeta no encontrada:', PLUGIN_PATH)
     return
   }
+
   const entries = fs.readdirSync(PLUGIN_PATH)
   for (const entry of entries) {
     const entryPath = path.join(PLUGIN_PATH, entry)
@@ -82,16 +69,9 @@ async function loadPlugins() {
       await importAndIndexPlugin(entryPath)
     }
   }
-  try {
-    const total = Object.keys(global.plugins).length
-    const plugInfo = `\n╭─────────────────────────────◉
-│ ${chalk.red.bgBlueBright.bold('        🧩 PLUGINS CARGADOS        ')}
-│ 「 📦 」${chalk.yellow('Total: ')}${chalk.white(total)}
-╰─────────────────────────────◉\n`
-    console.log(plugInfo)
-  } catch {
-    console.log('[Plugins]', Object.keys(global.plugins).length, 'cargados')
-  }
+
+  const total = Object.keys(global.plugins).length
+  console.log(chalk.blue(`✅ Plugins cargados: ${total}`))
 }
 
 async function importAndIndexPlugin(fullPath) {
@@ -99,85 +79,28 @@ async function importAndIndexPlugin(fullPath) {
     const mod = await import(pathToFileURL(fullPath).href + `?update=${Date.now()}`)
     const plug = mod.default || mod
     if (!plug) return
+
     plug.__file = path.basename(fullPath)
-    if (Array.isArray(plug.command)) plug.command = plug.command.map(c => typeof c === 'string' ? c.toLowerCase() : c)
-    else if (typeof plug.command === 'string') plug.command = plug.command.toLowerCase()
+
+    if (Array.isArray(plug.command))
+      plug.command = plug.command.map(c => typeof c === 'string' ? c.toLowerCase() : c)
+    else if (typeof plug.command === 'string')
+      plug.command = plug.command.toLowerCase()
+
     global.plugins[plug.__file] = plug
+
     const cmds = []
     if (typeof plug.command === 'string') cmds.push(plug.command)
     else if (Array.isArray(plug.command)) cmds.push(...plug.command.filter(c => typeof c === 'string'))
+
     for (const c of cmds) {
       const key = c.toLowerCase()
       if (!global.commandIndex[key]) global.commandIndex[key] = plug
     }
+
   } catch (e) {
-    try {
-      const fname = path.basename(fullPath)
-      const errBox = `\n╭─────────────────────────────◉
-│ ${chalk.white.bgRed.bold('        ❌ PLUGIN LOAD ERROR        ')}
-│ 「 🧩 」${chalk.yellow('Plugin: ')}${chalk.white(fname)}
-│ 「 ⚠️ 」${chalk.yellow('Error:  ')}${chalk.white(e.message || e)}
-╰─────────────────────────────◉\n`
-      console.error(errBox)
-    } catch {
-      console.error('[PluginLoadError]', path.basename(fullPath), e.message)
-    }
+    console.error(`[PluginLoadError] ${path.basename(fullPath)}:`, e.message)
   }
-}
-
-try { await loadDatabase() } catch (e) { console.log('[DB] Error cargando database:', e.message) }
-
-// NUEVO: sincronizar roles dinámicos con las globals que usa el handler
-await syncRolesToGlobals()
-
-try {
-  const dbInfo = `\n╭─────────────────────────────◉
-│ ${chalk.red.bgBlueBright.bold('        📦 BASE DE DATOS        ')}
-│ 「 🗃 」${chalk.yellow('Archivo: ')}${chalk.white(DB_PATH)}
-╰─────────────────────────────◉\n`
-  console.log(dbInfo)
-} catch {}
-
-await loadPlugins()
-
-let handler
-try { ({ handler } = await import('./handler.js')) } catch (e) { console.error('[Handler] Error importando handler:', e.message) }
-
-try {
-  const { say } = cfonts
-  const botDisplayName = (config && (config.botName || config.name || global.namebot)) || 'Bot'
-  console.log(chalk.magentaBright(`\n💫 Iniciando ${botDisplayName}...`))
-  say('Itsuki-Nakano', { font: 'simple', align: 'left', gradient: ['green','white'] })
-  say('By Leo xzzsy👑⚡️', { font: 'console', align: 'center', colors: ['cyan','magenta','yellow'] })
-  try { protoType() } catch {}
-  try { serialize() } catch {}
-  const packageJsonPath = path.join(__dirname, 'package.json')
-  let packageJsonObj = {}
-  try { const rawPkg = await fs.promises.readFile(packageJsonPath, 'utf8'); packageJsonObj = JSON.parse(rawPkg) } catch {}
-  const ramInGB = os.totalmem() / (1024 * 1024 * 1024)
-  const freeRamInGB = os.freemem() / (1024 * 1024 * 1024)
-  const currentTime = new Date().toLocaleString()
-  const info = `\n╭─────────────────────────────◉
-│ ${chalk.red.bgBlueBright.bold('        🖥 INFORMACIÓN DEL SISTEMA        ')}
-│「 💻 」${chalk.yellow(`SO: ${os.type()}, ${os.release()} - ${os.arch()}`)}
-│「 💾 」${chalk.yellow(`RAM Total: ${ramInGB.toFixed(2)} GB`)}
-│「 💽 」${chalk.yellow(`RAM Libre: ${freeRamInGB.toFixed(2)} GB`)}
-╰─────────────────────────────◉\n
-╭─────────────────────────────◉
-│ ${chalk.red.bgGreenBright.bold('        🟢 INFORMACIÓN DEL BOT        ')}
-│「 🎈 」${chalk.cyan(`Nombre: ${packageJsonObj.name || 'desconocido'}`)}
-│「 🍒 」${chalk.cyan(`Versión: ${packageJsonObj.version || '0.0.0'}`)}
-│「 🍉 」${chalk.cyan(`Descripción: ${packageJsonObj.description || ''}`)}
-│「 ☂️ 」${chalk.cyan(`Autor: ${(packageJsonObj.author && packageJsonObj.author.name) ? packageJsonObj.author.name : (packageJsonObj.author || 'N/A')} (@leo xzzsy)`)}
-│「 🐢 」${chalk.cyan('Colaborador: Bryan ofc Davidryze y mas')}
-╰─────────────────────────────◉\n
-╭─────────────────────────────◉
-│ ${chalk.red.bgMagenta.bold('        ⏰ HORA ACTUAL        ')}
-│「 🕒 」${chalk.magenta(`${currentTime}`)}
-╰─────────────────────────────◉\n`
-  console.log(info)
-} catch (e) {
-  console.log('[Banner] Error al mostrar banners:', e.message)
 }
 
 function ask(question) {
@@ -190,27 +113,22 @@ async function chooseMethod(authDir) {
   if (fs.existsSync(credsPath)) return 'existing'
   if (process.argv.includes('--qr')) return 'qr'
   if (process.argv.includes('--code')) return 'code'
-  if (process.env.LOGIN_MODE === 'qr') return 'qr'
-  if (process.env.LOGIN_MODE === 'code') return 'code'
+
   let ans
   do {
     console.clear()
-    const banner = `\n╭─────────────────────────────◉
-│ ${chalk.red.bgBlueBright.bold('    ⚙ MÉTODO DE CONEXIÓN BOT    ')}
-│「 🗯 」${chalk.yellow('Selecciona cómo quieres conectarte')}
-│「 📲 」${chalk.yellow.bgRed.bold('1. Escanear Código QR')}
-│「 🔛 」${chalk.red.bgGreenBright.bold('2. Código de Emparejamiento')}
-│
-│「 ✨️ 」${chalk.gray('Usa el código si tienes problemas con el QR')}
-│「 🚀 」${chalk.gray('Ideal para la primera configuración')}
-│
+    const banner = `
+╭─────────────────────────────◉
+│ ⚙ MÉTODO DE CONEXIÓN BOT
+│ 1. Escanear Código QR
+│ 2. Código de Emparejamiento
 ╰─────────────────────────────◉
-${chalk.magenta('--->')} ${chalk.bold('Elige (1 o 2): ')}`
+Elige (1 o 2): `
     ans = await ask(banner)
   } while (!['1','2'].includes(ans))
+
   return ans === '1' ? 'qr' : 'code'
 }
-
 const PROCESS_START_AT = Date.now()
 
 async function startBot() {
@@ -226,10 +144,12 @@ async function startBot() {
     auth: state,
     markOnlineOnConnect: true,
     syncFullHistory: false,
-    browser: method === 'code' ? Browsers.macOS('Safari') : ['SuperBot','Chrome','1.0.0']
+    browser: method === 'code' ? Browsers.macOS('Safari') : ['SuperBot', 'Chrome', '1.0.0']
   })
 
   global.conn = sock
+
+  // Auto carga de subbots (jadibot)
   const rutaJadiBot = path.join(__dirname, `./${global.jadi}`)
   if (!fs.existsSync(rutaJadiBot)) {
     fs.mkdirSync(rutaJadiBot, { recursive: true })
@@ -249,6 +169,8 @@ async function startBot() {
   }
 
   sock.__sessionOpenAt = sock.__sessionOpenAt || 0
+
+  // Mensajes entrantes
   sock.ev.on('messages.upsert', async (chatUpdate) => {
     try {
       const since = sock.__sessionOpenAt || PROCESS_START_AT
@@ -260,26 +182,39 @@ async function startBot() {
           const tsMs = isNaN(tsSec) ? 0 : (tsSec > 1e12 ? tsSec : tsSec * 1000)
           if (!tsMs) return true
           return tsMs >= (since - graceMs)
-        } catch { return true }
+        } catch {
+          return true
+        }
       })
       if (!fresh.length) return
       const filteredUpdate = { ...chatUpdate, messages: fresh }
       await handler?.call(sock, filteredUpdate)
-    } catch (e) { console.error('[HandlerError]', e?.message || e) }
+    } catch (e) {
+      console.error('[HandlerError]', e?.message || e)
+    }
   })
 
   sock.ev.on('creds.update', saveCreds)
 
+  // Auto guardado de DB y shutdown limpio
   try {
     setInterval(() => { saveDatabase().catch(() => {}) }, 60000)
-    const shutdown = async () => { try { await saveDatabase() } catch {} process.exit(0) }
+    const shutdown = async () => {
+      try { await saveDatabase() } catch {}
+      process.exit(0)
+    }
     process.on('SIGINT', shutdown)
     process.on('SIGTERM', shutdown)
   } catch {}
 
   async function ensureAuthDir() {
-    try { if (!fs.existsSync(authDir)) fs.mkdirSync(authDir, { recursive: true }) } catch (e) { console.error('[AuthDir]', e.message) }
+    try {
+      if (!fs.existsSync(authDir)) fs.mkdirSync(authDir, { recursive: true })
+    } catch (e) {
+      console.error('[AuthDir]', e.message)
+    }
   }
+
   async function generatePairingCodeWithRetry(number, maxAttempts = 5) {
     let attempt = 0
     while (attempt < maxAttempts) {
@@ -288,11 +223,13 @@ async function startBot() {
         return await sock.requestPairingCode(number)
       } catch (err) {
         const status = err?.output?.statusCode || err?.output?.payload?.statusCode
-        const transient = status === 428 || err?.code === 'ENOENT' || /Connection Closed/i.test(err?.message || '') || /not open/i.test(err?.message || '')
+        const transient = status === 428 || err?.code === 'ENOENT' ||
+          /Connection Closed/i.test(err?.message || '') ||
+          /not open/i.test(err?.message || '')
         if (!transient) throw err
         attempt++
         const wait = 500 + attempt * 500
-        console.log(`[Pairing] Aún no listo (intentando de nuevo en ${wait}ms) intento ${attempt}/${maxAttempts}`)
+        console.log(`[Pairing] Aún no listo (reintentando en ${wait}ms) intento ${attempt}/${maxAttempts}`)
         await new Promise(r => setTimeout(r, wait))
       }
     }
@@ -302,6 +239,7 @@ async function startBot() {
   let pairingRequested = false
   let pairingCodeGenerated = false
   let codeRegenInterface = null
+
   async function maybeStartPairingFlow() {
     if (method !== 'code') return
     if (sock.authState.creds.registered) return
@@ -314,11 +252,18 @@ async function startBot() {
       while (attempts < 5 && !obtained) {
         const raw = await ask(initialMsg)
         let cleaned = String(raw || '').trim()
-        if (!cleaned) { console.log(chalk.red('[Pairing] Entrada vacía.')); attempts++; continue }
-        cleaned = cleaned.replace(/\s+/g,'')
+        if (!cleaned) {
+          console.log(chalk.red('[Pairing] Entrada vacía.'))
+          attempts++
+          continue
+        }
+        cleaned = cleaned.replace(/\s+/g, '')
         if (!cleaned.startsWith('+')) cleaned = '+' + cleaned
-        const valid = await isValidPhoneNumber(cleaned).catch(()=>false)
-        if (valid) { obtained = cleaned.replace(/[^0-9]/g,''); break }
+        const valid = await isValidPhoneNumber(cleaned).catch(() => false)
+        if (valid) {
+          obtained = cleaned.replace(/[^0-9]/g, '')
+          break
+        }
         console.log(chalk.yellow(`[Pairing] Número no válido: ${cleaned}. Intenta de nuevo.`))
         attempts++
       }
@@ -363,9 +308,12 @@ async function startBot() {
       if (typeof o === 'string') return o
       return ''
     }
-    const candidate = (config.botNumber ? config.botNumber.toString() : '').trim().replace(/[^0-9]/g,'') || primaryOwnerNumber().replace(/[^0-9]/g,'')
+
+    const candidate = (config.botNumber ? config.botNumber.toString() : '').trim().replace(/[^0-9]/g, '') ||
+      primaryOwnerNumber().replace(/[^0-9]/g, '')
+
     if (candidate) {
-      let confirm = await ask(`\n${chalk.cyan('Detectado número configurado:')} ${chalk.yellow('+'+candidate)} ${chalk.white('¿Usar este número? (si/no): ')}`)
+      let confirm = await ask(`\n${chalk.cyan('Detectado número configurado:')} ${chalk.yellow('+' + candidate)} ${chalk.white('¿Usar este número? (si/no): ')}`)
       confirm = (confirm || '').trim().toLowerCase()
       if (/^(s|si|sí)$/.test(confirm)) {
         number = candidate
@@ -374,6 +322,7 @@ async function startBot() {
         if (/^(s|si|sí)$/i.test(retry.trim())) number = candidate
       }
     }
+
     if (!number) {
       number = await promptForNumber(`\n╭─────────────────────────────◉
 │ ${chalk.black.bgGreenBright.bold('  📞 INGRESO DE NÚMERO WHATSAPP  ')}
@@ -389,7 +338,7 @@ ${chalk.magenta('--->')} ${chalk.bold('Número: ')}`)
         return
       }
       await persistBotNumberIfNeeded(number)
-    } else if (!config.botNumber || config.botNumber.replace(/[^0-9]/g,'') !== number) {
+    } else if (!config.botNumber || config.botNumber.replace(/[^0-9]/g, '') !== number) {
       await persistBotNumberIfNeeded(number)
     }
 
@@ -409,7 +358,7 @@ ${chalk.magenta('--->')} ${chalk.bold('Número: ')}`)
 ╰─────────────────────────────◉\n`)
         if (!codeRegenInterface) {
           codeRegenInterface = readline.createInterface({ input: process.stdin, output: process.stdout })
-          console.log(chalk.cyan('\nEscribe = otra (si expiró el codigo para regenerar otro codigo).'))
+          console.log(chalk.cyan('\nEscribe = otra (si expiró el código para regenerar otro código).'))
           codeRegenInterface.on('line', async () => {
             if (sock.authState.creds.registered) {
               console.log(chalk.green('[Pairing] Ya vinculado.'))
@@ -445,25 +394,13 @@ ${chalk.magenta('--->')} ${chalk.bold('Número: ')}`)
 
   sock.ev.on('connection.update', async (update) => {
     const { connection, lastDisconnect, qr } = update
+
     if (connection === 'open') {
       console.log('✅ Bot conectado exitosamente')
-      if (typeof sendReconnectionMessage === 'function') {
-        await sendReconnectionMessage(conn)
-      }
     }
+
     if (connection === 'close') {
       console.log('❌ Conexión cerrada:', lastDisconnect?.error)
-    }
-    if (qr && method === 'qr') {
-      console.clear()
-      console.log(chalk.cyan('Escanea este QR con WhatsApp (Dispositivos vinculados):'))
-      try { qrcode.generate(qr, { small: true }) } catch { console.log(qr) }
-      console.log(chalk.gray('Para usar código de emparejamiento: reinicia con --code'))
-    }
-    if (method === 'code' && !sock.authState.creds.registered && !pairingRequested) {
-      setTimeout(maybeStartPairingFlow, 800)
-    }
-    if (connection === 'close') {
       const statusCode = lastDisconnect?.error?.output?.statusCode
       if (statusCode !== DisconnectReason.loggedOut) {
         console.log('Conectando....')
@@ -471,15 +408,27 @@ ${chalk.magenta('--->')} ${chalk.bold('Número: ')}`)
       } else {
         console.log('[Sesión cerrada] Borra la carpeta de credenciales y vuelve a vincular.')
       }
-    } else if (connection === 'open') {
+    }
+
+    if (qr && method === 'qr') {
+      console.clear()
+      console.log(chalk.cyan('Escanea este QR con WhatsApp (Dispositivos vinculados):'))
+      try { qrcode.generate(qr, { small: true }) } catch { console.log(qr) }
+      console.log(chalk.gray('Para usar código de emparejamiento: reinicia con --code'))
+    }
+
+    if (method === 'code' && !sock.authState.creds.registered && !pairingRequested) {
+      setTimeout(maybeStartPairingFlow, 800)
+    }
+
+    if (connection === 'open') {
       try {
         sock.__sessionOpenAt = Date.now()
         const rawId = sock?.user?.id || ''
-        const userJid = rawId ? jidNormalizedUser(rawId) : 'desconocido'
         const userName = sock?.user?.name || sock?.user?.verifiedName || 'Desconocido'
         console.log(chalk.green.bold(`[ 🍉 ]  Conectado a: ${userName}`))
         const jid = rawId
-        const num = jid.split(':')[0].replace(/[^0-9]/g,'')
+        const num = jid.split(':')[0].replace(/[^0-9]/g, '')
         if (num && !config.botNumber && !global.botNumber) {
           try {
             const cfgPath = path.join(__dirname, 'config.js')
@@ -524,7 +473,7 @@ ${chalk.magenta('--->')} ${chalk.bold('Número: ')}`)
         try { return jidNormalizedUser(p) } catch { return p }
       })
       if (type === 'bye' && botId && normalizedParts.includes(botId)) {
-        return 
+        return
       }
 
       let meta = null
@@ -546,39 +495,145 @@ ${chalk.magenta('--->')} ${chalk.bold('Número: ')}`)
               global.db.data = global.db.data || { users: {}, chats: {}, settings: {}, stats: {} }
               global.db.data.chats = global.db.data.chats || {}
               global.db.data.chats[id] = global.db.data.chats[id] || {}
-              for (const [k,v] of Object.entries(cfgDefaults)) {
+              for (const [k, v] of Object.entries(cfgDefaults)) {
                 if (!(k in global.db.data.chats[id])) global.db.data.chats[id][k] = v
               }
-              if (!('bienvenida' in global.db.data.chats[id]) && ('welcome' in cfgDefaults)) global.db.data.chats[id].bienvenida = !!cfgDefaults.welcome
+              if (!('bienvenida' in global.db.data.chats[id]) && ('welcome' in cfgDefaults)) {
+                global.db.data.chats[id].bienvenida = !!cfgDefaults.welcome
+              }
             } catch {}
           }
           await sendWelcomeOrBye(sock, { jid: id, userName, groupName, type: type === 'bye' ? 'bye' : 'welcome', participant: p })
         } catch (e) {
           const code = e?.data || e?.output?.statusCode || e?.output?.payload?.statusCode
-          if (code === 403) {
-            continue
-          }
+          if (code === 403) continue
           console.error('[WelcomeEvent]', e)
         }
       }
-    } catch (e) { console.error('[WelcomeEvent]', e) }
+    } catch (e) {
+      console.error('[WelcomeEvent]', e)
+    }
   })
 }
 
-startBot()
+// ✅ Función principal que organiza todo el flujo
+async function main() {
+  try {
+    // Cargar base de datos
+    try {
+      await loadDatabase()
+      console.log(chalk.green('[DB] Base de datos cargada'))
+    } catch (e) {
+      console.log('[DB] Error cargando database:', e.message)
+    }
 
+    // Sincronizar roles dinámicos
+    try {
+      await syncRolesToGlobals()
+      console.log(chalk.green('[Roles] Roles sincronizados'))
+    } catch (e) {
+      console.log('[Roles] Error sincronizando roles:', e.message)
+    }
+
+    // Mostrar información de la DB
+    try {
+      const dbInfo = `
+╭─────────────────────────────◉
+│ ${chalk.red.bgBlueBright.bold('        📦 BASE DE DATOS        ')}
+│ 「 🗃 」${chalk.yellow('Archivo: ')}${chalk.white(DB_PATH)}
+╰─────────────────────────────◉`
+      console.log(dbInfo)
+    } catch {}
+
+    // Cargar plugins
+    await loadPlugins()
+
+    // Importar handler
+    try {
+      const mod = await import('./handler.js')
+      global.handler = mod.handler
+    } catch (e) {
+      console.error('[Handler] Error importando handler:', e.message)
+    }
+
+    // Banner
+    try {
+      const { say } = cfonts
+      const botDisplayName = (config && (config.botName || config.name || global.namebot)) || 'Bot'
+      console.log(chalk.magentaBright(`\n💫 Iniciando ${botDisplayName}...`))
+      say('Itsuki-Nakano', { font: 'simple', align: 'left', gradient: ['green', 'white'] })
+      say('By Leo xzzsy👑⚡️', { font: 'console', align: 'center', colors: ['cyan', 'magenta', 'yellow'] })
+      try { protoType() } catch {}
+      try { serialize() } catch {}
+
+      const packageJsonPath = path.join(__dirname, 'package.json')
+      let packageJsonObj = {}
+      try {
+        const rawPkg = await fs.promises.readFile(packageJsonPath, 'utf8')
+        packageJsonObj = JSON.parse(rawPkg)
+      } catch {}
+
+      const ramInGB = os.totalmem() / (1024 * 1024 * 1024)
+      const freeRamInGB = os.freemem() / (1024 * 1024 * 1024)
+      const currentTime = new Date().toLocaleString()
+
+      const info = `
+╭─────────────────────────────◉
+│ ${chalk.red.bgBlueBright.bold('        🖥 INFORMACIÓN DEL SISTEMA        ')}
+│「 💻 」${chalk.yellow(`SO: ${os.type()}, ${os.release()} - ${os.arch()}`)}
+│「 💾 」${chalk.yellow(`RAM Total: ${ramInGB.toFixed(2)} GB`)}
+│「 💽 」${chalk.yellow(`RAM Libre: ${freeRamInGB.toFixed(2)} GB`)}
+╰─────────────────────────────◉
+
+╭─────────────────────────────◉
+│ ${chalk.red.bgGreenBright.bold('        🟢 INFORMACIÓN DEL BOT        ')}
+│「 🎈 」${chalk.cyan(`Nombre: ${packageJsonObj.name || 'desconocido'}`)}
+│「 🍒 」${chalk.cyan(`Versión: ${packageJsonObj.version || '0.0.0'}`)}
+│「 🍉 」${chalk.cyan(`Descripción: ${packageJsonObj.description || ''}`)}
+│「 ☂️ 」${chalk.cyan(`Autor: ${(packageJsonObj.author && packageJsonObj.author.name) ? packageJsonObj.author.name : (packageJsonObj.author || 'N/A')} (@leo xzzsy)`)}
+│「 🐢 」${chalk.cyan('Colaborador: Bryan ofc Davidryze y mas')}
+╰─────────────────────────────◉
+
+╭─────────────────────────────◉
+│ ${chalk.red.bgMagenta.bold('        ⏰ HORA ACTUAL        ')}
+│「 🕒 」${chalk.magenta(`${currentTime}`)}
+╰─────────────────────────────◉`
+      console.log(info)
+    } catch (e) {
+      console.log('[Banner] Error al mostrar banners:', e.message)
+    }
+
+    // Iniciar bot
+    await startBot()
+
+  } catch (e) {
+    console.error('[MAIN ERROR]', e)
+  }
+}
+
+// ✅ Ejecutar main()
+main()
+
+// ✅ Recarga de plugins en caliente
 const PLUGIN_DIR = path.join(__dirname, 'plugins')
 let __syntaxErrorFn = null
-try { const mod = await import('syntax-error'); __syntaxErrorFn = mod.default || mod } catch {}
+
+try {
+  const mod = await import('syntax-error')
+  __syntaxErrorFn = mod.default || mod
+} catch {}
+
 global.reload = async (_ev, filename) => {
   try {
     if (!filename || !filename.endsWith('.js')) return
     const filePath = path.join(PLUGIN_DIR, filename)
+
     if (!fs.existsSync(filePath)) {
       console.log(chalk.yellow(`⚠️ El plugin '${filename}' fue eliminado`))
       delete global.plugins[filename]
       return
     }
+
     if (__syntaxErrorFn) {
       try {
         const src = await fs.promises.readFile(filePath)
@@ -594,12 +649,16 @@ global.reload = async (_ev, filename) => {
         }
       } catch {}
     }
+
     await importAndIndexPlugin(filePath)
     console.log(chalk.green(`🍃 Recargado plugin '${filename}'`))
+
   } catch (e) {
     console.error('[ReloadPlugin]', e.message || e)
   }
 }
+
+// ✅ Watcher de plugins
 try {
   fs.watch(PLUGIN_DIR, { recursive: false }, (ev, fname) => {
     if (!fname) return
@@ -607,6 +666,7 @@ try {
   })
 } catch {}
 
+// ✅ Validador de número
 async function isValidPhoneNumber(number) {
   try {
     let n = number.replace(/\s+/g, '')
@@ -618,7 +678,7 @@ async function isValidPhoneNumber(number) {
     }
     const parsed = phoneUtil.parseAndKeepRawInput(n)
     return phoneUtil.isValidNumber(parsed)
-  } catch (error) {
+  } catch {
     return false
   }
 }

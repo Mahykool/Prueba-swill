@@ -115,7 +115,7 @@ let handler = async (m, { conn, args, command }) => {
     }
   }
 
-  // ✅ Comando principal de desmute: DESHADOWBAN
+  // ✅ Comando principal de desmute
   if (['deshadowban', 'desmute', 'quitarmute', 'unmute'].includes(command)) {
 
     if (!muted[target])
@@ -151,4 +151,46 @@ let handler = async (m, { conn, args, command }) => {
     for (let u in muted) {
       let remaining = muted[u].expires - Date.now()
       let mins = Math.max(1, Math.floor(remaining / 60000))
-      text += `• @${u.split('@')[0]} — ${mins} min restantes\n
+      text += `• @${u.split('@')[0]} — ${mins} min restantes\n`
+    }
+
+    return conn.reply(m.chat, text, m, {
+      mentions: Object.keys(muted)
+    })
+  }
+
+  // ✅ Log de muteos
+  if (command === 'mutelog') {
+    if (mutelog.length === 0)
+      return conn.reply(m.chat, '✅ *No hay registros de mute.*', m)
+
+    let text = '📄 *Registro de muteos:*\n\n'
+    for (let log of mutelog.slice(-20)) {
+      text += `• ${log.action} — @${log.target?.split('@')[0] || 'N/A'}\n`
+      text += `  Por: @${log.by.split('@')[0]}\n`
+      if (log.time) text += `  Tiempo: ${log.time}\n`
+      if (log.reason) text += `  Razón: ${log.reason}\n`
+      text += `  Fecha: ${log.date}\n\n`
+    }
+
+    return conn.reply(m.chat, text, m, {
+      mentions: mutelog.flatMap(l => [l.target, l.by]).filter(Boolean)
+    })
+  }
+
+  // ✅ Limpiar log
+  if (command === 'clearmutelog') {
+    mutelog = []
+    saveLog()
+    return conn.reply(m.chat, '🧹 *Registro de mute limpiado.*', m)
+  }
+}
+
+// ✅ TAG para menú Swill (corregido)
+handler.tags = ['admin']
+
+// ✅ Comandos
+handler.help = ['showban', 'desmute', 'mutelist', 'mutelog', 'clearmutelog']
+handler.command = ['showban', 'deshadowban', 'desmute', 'quitarmute', 'unmute', 'mutelist', 'mutelog', 'clearmutelog']
+
+export default handler

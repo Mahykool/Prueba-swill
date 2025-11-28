@@ -13,7 +13,7 @@ let handler = async (m, { conn, args, usedPrefix, command, isAdmin, isBotAdmin }
 
   if (!action) {
     return conn.reply(m.chat, `
-╭━━━〔 𝐒𝐈𝐒𝐓𝐄𝐌𝐀 𝐀𝐍𝐓𝐈𝐋𝐈𝐍𝐊-𝐍𝐊 🖇️🚫 〕━━━⬣
+╭━━━〔 𝐒𝐈𝐒𝐓𝐄𝐌𝐀 𝐀𝐍𝐓𝐈𝐋𝐈𝐍𝐊 🖇️🚫 〕━━━⬣
 ┃ ➡️ ${usedPrefix}antilink on      → Activar
 ┃ ➡️ ${usedPrefix}antilink off     → Desactivar
 ┃ ➡️ ${usedPrefix}antilink status  → Estado

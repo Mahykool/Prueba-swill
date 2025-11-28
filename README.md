@@ -29,7 +29,7 @@ termux-setup-storage
 ```
 
 ```bash
-apt update && apt upgrade -y
+yes | apt update && yes | apt upgrade -y
 ```
 
 ```bash

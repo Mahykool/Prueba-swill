@@ -1,3 +1,4 @@
+// index.js
 import { fileURLToPath, pathToFileURL } from 'url'
 import path from 'path'
 import os from 'os'
@@ -8,7 +9,13 @@ import qrcode from 'qrcode-terminal'
 import libPhoneNumber from 'google-libphonenumber'
 import cfonts from 'cfonts'
 import pino from 'pino'
-import { useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion, Browsers, jidNormalizedUser } from '@whiskeysockets/baileys'
+import {
+  useMultiFileAuthState,
+  DisconnectReason,
+  fetchLatestBaileysVersion,
+  Browsers,
+  jidNormalizedUser
+} from '@whiskeysockets/baileys'
 import simple from './lib/simple.js'
 import config from './config.js'
 import { sendWelcomeOrBye } from './lib/welcome.js'
@@ -31,7 +38,9 @@ global.mods = Array.isArray(global.mods) ? global.mods : []
 global.staff = Array.isArray(global.staff) ? global.staff : []
 global.chatDefaults = (global.chatDefaults && typeof global.chatDefaults === 'object') ? global.chatDefaults : {}
 
-if (!fs.existsSync("./tmp")) fs.mkdirSync("./tmp")
+process.env.JADI_DIR = process.env.JADI_DIR || global.jadi
+
+if (!fs.existsSync('./tmp')) fs.mkdirSync('./tmp', { recursive: true })
 
 const CONFIG_PATH = path.join(__dirname, 'config.js')
 watchFile(CONFIG_PATH, async () => {
@@ -109,6 +118,7 @@ async function loadPlugins() {
     console.log('[Plugins]', Object.keys(global.plugins).length, 'cargados')
   }
 }
+
 try { await loadDatabase() } catch (e) { console.log('[DB] Error cargando database:', e.message) }
 try {
   const dbInfo = `\n╭─────────────────────────────◉\n│ ${chalk.red.bgBlueBright.bold('        📦 BASE DE DATOS        ')}\n│ 「 🗃 」${chalk.yellow('Archivo: ')}${chalk.white(DB_PATH)}\n╰─────────────────────────────◉\n`
@@ -125,7 +135,17 @@ try {
 await loadPlugins()
 
 let handler
-try { ({ handler } = await import('./handler.js')) } catch (e) { console.error('[Handler] Error importando handler:', e.message) }
+try {
+  const mod = await import('./handler.js?update=' + Date.now()).catch(() => null)
+  handler = mod?.handler || mod?.default?.handler || mod?.default || mod
+  if (!handler) {
+    console.warn('[Handler] handler export no encontrado, usando stub')
+    handler = async () => {}
+  }
+} catch (e) {
+  console.error('[Handler] Error importando handler:', e.message)
+  handler = async () => {}
+}
 
 try {
   const { say } = cfonts
@@ -157,6 +177,7 @@ async function chooseMethod(authDir) {
   } while (!['1','2'].includes(ans))
   return ans === '1' ? 'qr' : 'code'
 }
+
 let __restarting = false
 let __restartTimeout = null
 const RESTART_DEBOUNCE_MS = 5000
@@ -235,15 +256,20 @@ async function startBot() {
     browser: method === 'code' ? Browsers.macOS('Safari') : ['SuperBot','Chrome','1.0.0']
   })
 
-  // Optional: enable serialization/proto helpers if provided by simple
-  try { simple.serialize() } catch {}
-  // try { simple.protoType() } catch {}
-
+  try { simple.serialize?.() } catch {}
   global.conn = sock
-  const rutaJadiBot = path.join(__dirname, `./${global.jadi}`)
-  if (!fs.existsSync(rutaJadiBot)) {
-    fs.mkdirSync(rutaJadiBot, { recursive: true })
+
+  // Bind store if available
+  try {
+    const store = (await import('./lib/store.js')).default
+    if (store && typeof store.bind === 'function') store.bind(sock)
+  } catch (e) {
+    console.warn('[Store] No se pudo bindear store:', e?.message || e)
   }
+
+  // Ensure jadi sessions folder exists and start any saved sub-bots
+  const rutaJadiBot = path.join(__dirname, `./${global.jadi}`)
+  if (!fs.existsSync(rutaJadiBot)) fs.mkdirSync(rutaJadiBot, { recursive: true })
   const readRutaJadiBot = fs.readdirSync(rutaJadiBot)
   if (readRutaJadiBot.length > 0) {
     const creds = 'creds.json'
@@ -252,7 +278,7 @@ async function startBot() {
       if (fs.existsSync(botPath) && fs.statSync(botPath).isDirectory()) {
         const readBotPath = fs.readdirSync(botPath)
         if (readBotPath.includes(creds)) {
-          yukiJadiBot({ pathYukiJadiBot: botPath, m: null, conn: sock, args: '', usedPrefix: '/', command: 'serbot' })
+          yukiJadiBot({ pathYukiJadiBot: botPath, m: null, conn: sock, args: '', usedPrefix: '/', command: 'serbot' }).catch(() => {})
         }
       }
     }
@@ -281,18 +307,12 @@ async function startBot() {
 
   let pairingRequested = false
   let pairingCodeGenerated = false
-  let codeRegenInterface = null
 
   async function maybeStartPairingFlow() {
-    console.log('[Pairing] maybeStartPairingFlow disparado. method =', method, 'registered =', !!sock.authState.creds.registered)
     if (method !== 'code') return
     if (sock.authState.creds.registered) return
-    if (pairingRequested) {
-      console.log('[Pairing] Ya se solicitó pairing, saliendo.')
-      return
-    }
+    if (pairingRequested) return
     pairingRequested = true
-    console.log('[Pairing] Iniciando flujo de emparejamiento por código...')
 
     async function promptForNumber(initialMsg) {
       let attempts = 0
@@ -300,66 +320,23 @@ async function startBot() {
       while (attempts < 5 && !obtained) {
         const raw = await ask(initialMsg)
         let cleaned = String(raw || '').trim()
-        if (!cleaned) { console.log(chalk.red('[Pairing] Entrada vacía.')); attempts++; continue }
+        if (!cleaned) { attempts++; continue }
         cleaned = cleaned.replace(/\s+/g,'')
         if (!cleaned.startsWith('+')) cleaned = '+' + cleaned
         const valid = await isValidPhoneNumber(cleaned).catch(()=>false)
         if (valid) { obtained = cleaned.replace(/[^0-9]/g,''); break }
-        console.log(chalk.yellow(`[Pairing] Número no válido: ${cleaned}. Intenta de nuevo.`))
         attempts++
       }
       return obtained
     }
 
-    async function persistBotNumberIfNeeded(num) {
-      try {
-        if (!num) return
-        const cfgPath = path.join(__dirname, 'config.js')
-        const file = await fs.promises.readFile(cfgPath, 'utf8')
-        let updated = file
-        const patterns = [
-          { re: /global\.botNumber\s*=\s*global\.botNumber\s*\|\|\s*['"].*?['"]\s*;?/m, repl: `global.botNumber = '${num}'` },
-          { re: /global\.botNumber\s*=\s*['"].*?['"]\s*;?/m, repl: `global.botNumber = '${num}'` },
-          { re: /botNumber\s*:\s*['"].*?['"]/m, repl: `botNumber: '${num}'` }
-        ]
-        for (const { re, repl } of patterns) {
-          if (re.test(updated)) { updated = updated.replace(re, repl); break }
-        }
-        if (updated !== file) {
-          await fs.promises.writeFile(cfgPath, updated)
-          if (config) config.botNumber = num
-          global.botNumber = num
-          console.log(chalk.gray('[Config] botNumber guardado en config.js'))
-        }
-      } catch (e) {
-        console.log(chalk.red('[Config] No se pudo actualizar botNumber:', e.message))
-      }
-    }
-
     try {
-      const number = await promptForNumber(
-        chalk.yellow('👉 Ingresa el número de WhatsApp donde quieres vincular el bot (ej: +5219991234567): ')
-      )
-
-      if (!number) {
-        console.log(chalk.red('[Pairing] No se obtuvo un número válido. Cancelando flujo de emparejamiento.'))
-        pairingRequested = false
-        return
-      }
-
+      const number = await promptForNumber(chalk.yellow('👉 Ingresa el número de WhatsApp donde quieres vincular el bot (ej: +5219991234567): '))
+      if (!number) { pairingRequested = false; return }
       await persistBotNumberIfNeeded(number)
-
-      console.log(chalk.gray('\n[Pairing] Generando código de emparejamiento, espera unos segundos...\n'))
-
       const pairingCode = await generatePairingCodeWithRetry(number)
-
       pairingCodeGenerated = true
-
-      console.log(
-        chalk.green.bold('\n🔑 CÓDIGO DE EMPAREJAMIENTO GENERADO:\n') +
-        chalk.white.bold(`\n   ${pairingCode}\n`) +
-        chalk.gray('\n📲 Ahora ve a WhatsApp > Dispositivos vinculados > Vincular con código del teléfono.\n')
-      )
+      console.log(chalk.green.bold('\n🔑 CÓDIGO DE EMPAREJAMIENTO GENERADO:\n') + chalk.white.bold(`\n   ${pairingCode}\n`))
     } catch (err) {
       pairingRequested = false
       console.error('[Pairing] Error durante el flujo de emparejamiento:', err?.message || err)
@@ -367,6 +344,7 @@ async function startBot() {
   }
 
   setTimeout(maybeStartPairingFlow, 2500)
+
   sock.ev.on('connection.update', async (update) => {
     try {
       const logUpdate = { ...update }
@@ -485,6 +463,7 @@ async function startBot() {
     process.on('SIGINT', shutdown)
     process.on('SIGTERM', shutdown)
   } catch {}
+
   async function ensureAuthDir() {
     try { if (!fs.existsSync(authDir)) fs.mkdirSync(authDir, { recursive: true }) } catch (e) { console.error('[AuthDir]', e.message) }
   }
@@ -593,5 +572,34 @@ async function startBot() {
     }
   }
 
+  async function persistBotNumberIfNeeded(num) {
+    try {
+      if (!num) return
+      const cfgPath = path.join(__dirname, 'config.js')
+      const file = await fs.promises.readFile(cfgPath, 'utf8')
+      let updated = file
+      const patterns = [
+        { re: /global\.botNumber\s*=\s*global\.botNumber\s*\|\|\s*['"].*?['"]\s*;?/m, repl: `global.botNumber = '${num}'` },
+        { re: /global\.botNumber\s*=\s*['"].*?['"]\s*;?/m, repl: `global.botNumber = '${num}'` },
+        { re: /botNumber\s*:\s*['"].*?['"]/m, repl: `botNumber: '${num}'` }
+      ]
+      for (const { re, repl } of patterns) {
+        if (re.test(updated)) { updated = updated.replace(re, repl); break }
+      }
+      if (updated !== file) {
+        await fs.promises.writeFile(cfgPath, updated)
+        if (config) config.botNumber = num
+        global.botNumber = num
+        console.log(chalk.gray('[Config] botNumber guardado en config.js'))
+      }
+    } catch (e) {
+      console.log(chalk.red('[Config] No se pudo actualizar botNumber:', e.message))
+    }
+  }
+
 }
-startBot()
+
+startBot().catch(err => {
+  console.error('[StartBot] Error al iniciar:', err?.message || err)
+  process.exit(1)
+})

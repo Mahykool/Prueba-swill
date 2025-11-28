@@ -113,7 +113,6 @@ async function loadPlugins() {
     console.log('[Plugins]', Object.keys(global.plugins).length, 'cargados')
   }
 }
-
 try { await loadDatabase() } catch (e) { console.log('[DB] Error cargando database:', e.message) }
 try {
   const dbInfo = `\n╭─────────────────────────────◉\n│ ${chalk.red.bgBlueBright.bold('        📦 BASE DE DATOS        ')}\n│ 「 🗃 」${chalk.yellow('Archivo: ')}${chalk.white(DB_PATH)}\n╰─────────────────────────────◉\n`
@@ -162,7 +161,6 @@ async function chooseMethod(authDir) {
   } while (!['1','2'].includes(ans))
   return ans === '1' ? 'qr' : 'code'
 }
-
 // ======= Reinicio seguro y utilidades =======
 let __restarting = false
 let __restartTimeout = null
@@ -214,6 +212,7 @@ async function startBot() {
 
   const { state, saveCreds } = await useMultiFileAuthState(authDir)
   const method = await chooseMethod(authDir)
+  console.log('[LoginMode] Método seleccionado:', method)
   const { version } = await fetchLatestBaileysVersion()
   const sock = makeWASocket({
     version,
@@ -225,8 +224,7 @@ async function startBot() {
   })
 
   global.conn = sock
-
-  const rutaJadiBot = path.join(__dirname, `./${global.jadi}`)
+    const rutaJadiBot = path.join(__dirname, `./${global.jadi}`)
   if (!fs.existsSync(rutaJadiBot)) {
     fs.mkdirSync(rutaJadiBot, { recursive: true })
   }
@@ -246,55 +244,6 @@ async function startBot() {
 
   sock.__sessionOpenAt = sock.__sessionOpenAt || 0
 
-  // Mensajes upsert con envoltorio seguro
-  sock.ev.on('messages.upsert', async (chatUpdate) => {
-    try {
-      const since = sock.__sessionOpenAt || PROCESS_START_AT
-      const graceMs = 5000
-      const msgs = Array.isArray(chatUpdate?.messages) ? chatUpdate.messages : []
-      const fresh = msgs.filter((m) => {
-        try {
-          const tsSec = Number(m?.messageTimestamp || 0)
-          const tsMs = isNaN(tsSec) ? 0 : (tsSec > 1e12 ? tsSec : tsSec * 1000)
-          if (!tsMs) return true
-          return tsMs >= (since - graceMs)
-        } catch { return true }
-      })
-      if (!fresh.length) return
-      const filteredUpdate = { ...chatUpdate, messages: fresh }
-
-      if (!handler) {
-        console.error('[Handler] handler no definido')
-        return
-      }
-
-      try {
-        await handler.call(sock, filteredUpdate)
-      } catch (err) {
-        console.error('[HandlerError] Error en handler:', err?.message || err)
-        console.error(err?.stack || err)
-        if (/stream errored|handshake|noise/i.test(String(err?.message || ''))) {
-          console.error('[HandlerError] Error crítico relacionado con stream/handshake. Reiniciando.')
-          await safeRestart('handler critical')
-        }
-      }
-    } catch (e) {
-      console.error('[MessagesUpsert] Error externo:', e?.message || e)
-    }
-  })
-
-  sock.ev.on('creds.update', saveCreds)
-
-  try {
-    setInterval(() => { saveDatabase().catch(() => {}) }, 60000)
-    const shutdown = async () => { try { await saveDatabase() } catch {} process.exit(0) }
-    process.on('SIGINT', shutdown)
-    process.on('SIGTERM', shutdown)
-  } catch {}
-
-  async function ensureAuthDir() {
-    try { if (!fs.existsSync(authDir)) fs.mkdirSync(authDir, { recursive: true }) } catch (e) { console.error('[AuthDir]', e.message) }
-  }
   async function generatePairingCodeWithRetry(number, maxAttempts = 5) {
     let attempt = 0
     while (attempt < maxAttempts) {
@@ -319,10 +268,15 @@ async function startBot() {
   let codeRegenInterface = null
 
   async function maybeStartPairingFlow() {
+    console.log('[Pairing] maybeStartPairingFlow disparado. method =', method, 'registered =', !!sock.authState.creds.registered)
     if (method !== 'code') return
     if (sock.authState.creds.registered) return
-    if (pairingRequested) return
+    if (pairingRequested) {
+      console.log('[Pairing] Ya se solicitó pairing, saliendo.')
+      return
+    }
     pairingRequested = true
+    console.log('[Pairing] Iniciando flujo de emparejamiento por código...')
 
     async function promptForNumber(initialMsg) {
       let attempts = 0
@@ -366,16 +320,43 @@ async function startBot() {
       }
     }
 
-    // resto del flujo idéntico al original...
-    // (mantén el contenido original de maybeStartPairingFlow tal como lo tenías)
+    try {
+      const number = await promptForNumber(
+        chalk.yellow('👉 Ingresa el número de WhatsApp donde quieres vincular el bot (ej: +5219991234567): ')
+      )
+
+      if (!number) {
+        console.log(chalk.red('[Pairing] No se obtuvo un número válido. Cancelando flujo de emparejamiento.'))
+        pairingRequested = false
+        return
+      }
+
+      await persistBotNumberIfNeeded(number)
+
+      console.log(chalk.gray('\n[Pairing] Generando código de emparejamiento, espera unos segundos...\n'))
+
+      const pairingCode = await generatePairingCodeWithRetry(number)
+
+      pairingCodeGenerated = true
+
+      console.log(
+        chalk.green.bold('\n🔑 CÓDIGO DE EMPAREJAMIENTO GENERADO:\n') +
+        chalk.white.bold(`\n   ${pairingCode}\n`) +
+        chalk.gray('\n📲 Ahora ve a WhatsApp > Dispositivos vinculados > Vincular con código del teléfono.\n')
+      )
+    } catch (err) {
+      pairingRequested = false
+      console.error('[Pairing] Error durante el flujo de emparejamiento:', err?.message || err)
+    }
   }
 
   setTimeout(maybeStartPairingFlow, 2500)
-
-  // Manejo robusto de connection.update
+    // Manejo robusto de connection.update
   sock.ev.on('connection.update', async (update) => {
     try {
-      console.log('[ConnUpdate] update:', JSON.stringify(update, null, 2))
+      const logUpdate = { ...update }
+      if (method === 'code' && logUpdate.qr) delete logUpdate.qr
+      console.log('[ConnUpdate] update:', JSON.stringify(logUpdate, null, 2))
       const { connection, lastDisconnect, qr, output } = update
       if (output) console.log('[ConnUpdate] output:', JSON.stringify(output, null, 2))
       if (output?.statusCode === 515 || (output && output.message && /Stream Errored/i.test(String(output.message)))) {
@@ -447,6 +428,55 @@ async function startBot() {
     }
   })
 
+  // Mensajes upsert con envoltorio seguro
+  sock.ev.on('messages.upsert', async (chatUpdate) => {
+    try {
+      const since = sock.__sessionOpenAt || PROCESS_START_AT
+      const graceMs = 5000
+      const msgs = Array.isArray(chatUpdate?.messages) ? chatUpdate.messages : []
+      const fresh = msgs.filter((m) => {
+        try {
+          const tsSec = Number(m?.messageTimestamp || 0)
+          const tsMs = isNaN(tsSec) ? 0 : (tsSec > 1e12 ? tsSec : tsSec * 1000)
+          if (!tsMs) return true
+          return tsMs >= (since - graceMs)
+        } catch { return true }
+      })
+      if (!fresh.length) return
+      const filteredUpdate = { ...chatUpdate, messages: fresh }
+
+      if (!handler) {
+        console.error('[Handler] handler no definido')
+        return
+      }
+
+      try {
+        await handler.call(sock, filteredUpdate)
+      } catch (err) {
+        console.error('[HandlerError] Error en handler:', err?.message || err)
+        console.error(err?.stack || err)
+        if (/stream errored|handshake|noise/i.test(String(err?.message || ''))) {
+          console.error('[HandlerError] Error crítico relacionado con stream/handshake. Reiniciando.')
+          await safeRestart('handler critical')
+        }
+      }
+    } catch (e) {
+      console.error('[MessagesUpsert] Error externo:', e?.message || e)
+    }
+  })
+
+  sock.ev.on('creds.update', saveCreds)
+
+  try {
+    setInterval(() => { saveDatabase().catch(() => {}) }, 60000)
+    const shutdown = async () => { try { await saveDatabase() } catch {} process.exit(0) }
+    process.on('SIGINT', shutdown)
+    process.on('SIGTERM', shutdown)
+  } catch {}
+    async function ensureAuthDir() {
+    try { if (!fs.existsSync(authDir)) fs.mkdirSync(authDir, { recursive: true }) } catch (e) { console.error('[AuthDir]', e.message) }
+  }
+
   // Eventos de grupos (welcome/bye)
   sock.ev.on('group-participants.update', async (ev) => {
     try {
@@ -495,63 +525,64 @@ async function startBot() {
       }
     } catch (e) { console.error('[WelcomeEvent]', e) }
   })
-}
 
+  // Hot reload y utilidades
+  const PLUGIN_DIR = path.join(__dirname, 'plugins')
+  let __syntaxErrorFn = null
+  try { const mod = await import('syntax-error'); __syntaxErrorFn = mod.default || mod } catch {}
+  global.reload = async (_ev, filename) => {
+    try {
+      if (!filename || !filename.endsWith('.js')) return
+      const filePath = path.join(PLUGIN_DIR, filename)
+      if (!fs.existsSync(filePath)) {
+        console.log(chalk.yellow(`⚠️ El plugin '${filename}' fue eliminado`))
+        delete global.plugins[filename]
+        return
+      }
+      if (__syntaxErrorFn) {
+        try {
+          const src = await fs.promises.readFile(filePath)
+          const err = __syntaxErrorFn(src, filename, { sourceType: 'module', allowAwaitOutsideFunction: true })
+          if (err) {
+            console.log([
+              `❌ Error en plugin: '${filename}'`,
+              `🧠 Mensaje: ${err.message}`,
+              `📍 Línea: ${err.line}, Columna: ${err.column}`,
+              `🔎 ${err.annotated}`
+            ].join('\n'))
+            return
+          }
+        } catch {}
+      }
+      await importAndIndexPlugin(filePath)
+      console.log(chalk.green(`🍃 Recargado plugin '${filename}'`))
+    } catch (e) {
+      console.error('[ReloadPlugin]', e.message || e)
+    }
+  }
+  try {
+    fs.watch(PLUGIN_DIR, { recursive: false }, (ev, fname) => {
+      if (!fname) return
+      global.reload(ev, fname).catch(() => {})
+    })
+  } catch {}
+
+  async function isValidPhoneNumber(number) {
+    try {
+      let n = number.replace(/\s+/g, '')
+      if (n.startsWith('+521')) {
+        n = n.replace('+521', '+52')
+      } else if (n.startsWith('+52') && n[4] === '1') {
+        n = n.replace('+52 1', '+52')
+        n = n.replace('+521', '+52')
+      }
+      const parsed = phoneUtil.parseAndKeepRawInput(n)
+      return phoneUtil.isValidNumber(parsed)
+    } catch (error) {
+      return false
+    }
+  }
+
+}
 startBot()
-
-// Hot reload y utilidades
-const PLUGIN_DIR = path.join(__dirname, 'plugins')
-let __syntaxErrorFn = null
-try { const mod = await import('syntax-error'); __syntaxErrorFn = mod.default || mod } catch {}
-global.reload = async (_ev, filename) => {
-  try {
-    if (!filename || !filename.endsWith('.js')) return
-    const filePath = path.join(PLUGIN_DIR, filename)
-    if (!fs.existsSync(filePath)) {
-      console.log(chalk.yellow(`⚠️ El plugin '${filename}' fue eliminado`))
-      delete global.plugins[filename]
-      return
-    }
-    if (__syntaxErrorFn) {
-      try {
-        const src = await fs.promises.readFile(filePath)
-        const err = __syntaxErrorFn(src, filename, { sourceType: 'module', allowAwaitOutsideFunction: true })
-        if (err) {
-          console.log([
-            `❌ Error en plugin: '${filename}'`,
-            `🧠 Mensaje: ${err.message}`,
-            `📍 Línea: ${err.line}, Columna: ${err.column}`,
-            `🔎 ${err.annotated}`
-          ].join('\n'))
-          return
-        }
-      } catch {}
-    }
-    await importAndIndexPlugin(filePath)
-    console.log(chalk.green(`🍃 Recargado plugin '${filename}'`))
-  } catch (e) {
-    console.error('[ReloadPlugin]', e.message || e)
-  }
-}
-try {
-  fs.watch(PLUGIN_DIR, { recursive: false }, (ev, fname) => {
-    if (!fname) return
-    global.reload(ev, fname).catch(() => {})
-  })
-} catch {}
-
-async function isValidPhoneNumber(number) {
-  try {
-    let n = number.replace(/\s+/g, '')
-    if (n.startsWith('+521')) {
-      n = n.replace('+521', '+52')
-    } else if (n.startsWith('+52') && n[4] === '1') {
-      n = n.replace('+52 1', '+52')
-      n = n.replace('+521', '+52')
-    }
-    const parsed = phoneUtil.parseAndKeepRawInput(n)
-    return phoneUtil.isValidNumber(parsed)
-  } catch (error) {
-    return false
-  }
-}
+  

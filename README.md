@@ -2,6 +2,7 @@
 
 <details>
 <summary><b>📌 OFUKNA</b></summary>
+
 ```bash
 termux-setup-storage
 ```

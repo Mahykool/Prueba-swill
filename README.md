@@ -31,8 +31,8 @@ pkg install -y git ffmpeg imagemagick openssl curl
 ```bash
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
 ```
-CERRAR Y VOLVER A ABRIR
 
+> *CERRAR Y VOLVER A ABRIR*
 ```bash
 nvm install 20
 ```

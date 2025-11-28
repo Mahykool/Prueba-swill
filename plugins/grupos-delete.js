@@ -1,12 +1,14 @@
+import { decodeJidCompat } from '../lib/utils.js'
+
 let handler = async (m, { conn, isGroup }) => {
   if (!m.quoted)
     return conn.reply(m.chat, '❀ Cita el mensaje que deseas eliminar.', m)
 
   try {
-    const botJid = conn.decodeJid(conn.user.id)
-    const senderJid = conn.decodeJid(m.sender)
+    const botJid = (typeof conn.decodeJid === 'function' ? conn.decodeJid(conn.user.id) : decodeJidCompat(conn.user.id))
+    const senderJid = (typeof conn.decodeJid === 'function' ? conn.decodeJid(m.sender) : decodeJidCompat(m.sender))
     const quoted = m.quoted
-    const quotedJid = conn.decodeJid(quoted.sender)
+    const quotedJid = (typeof conn.decodeJid === 'function' ? conn.decodeJid(quoted.sender) : decodeJidCompat(quoted.sender))
 
     const stanzaId = quoted.id
     const participant = quoted.participant || quotedJid

@@ -35,7 +35,7 @@ const normalizeJid = v => {
 
 const cleanJid = jid => jid?.split(':')[0] || ''
 
-function decodeJidCompat(jid = '') { if (!jid) return jid; if (/:[0-9A-Fa-f]+@/.test(jid)) { const [user, server] = jid.split('@'); return user.split(':')[0] + '@' + server } return jid }
+function decodeJidCompatLocal(jid = '') { if (!jid) return jid; if (/:[0-9A-Fa-f]+@/.test(jid)) { const [user, server] = jid.split('@'); return user.split(':')[0] + '@' + server } return jid }
 
 if (!global.db) global.db = { data: { users: {}, chats: {}, settings: {}, stats: {} } }
 if (!global.db.data) global.db.data = { users: {}, chats: {}, settings: {}, stats: {} }
@@ -109,7 +109,9 @@ export async function handler(chatUpdate) {
   this.__waCache = this.__waCache || new Map()
   this._groupCache = this._groupCache || {}
   try {
-    const botIdKey = this.user?.jid || (this.user?.id ? this.decodeJid(this.user.id) : 'bot')
+    const botIdKey = this.user?.jid || (this.user?.id
+      ? (typeof this.decodeJid === 'function' ? this.decodeJid(this.user.id) : decodeJidCompat(this.user.id))
+      : 'bot')
     global.db.data.settings[botIdKey] = global.db.data.settings[botIdKey] || {}
     if (typeof global.db.data.settings[botIdKey].autotypeDotOnly !== 'boolean') {
       global.db.data.settings[botIdKey].autotypeDotOnly = false
@@ -260,7 +262,9 @@ export async function handler(chatUpdate) {
         global.db.data.chats[m.chat] = { ...cfgDefaults }
         if (!('bienvenida' in global.db.data.chats[m.chat]) && ('welcome' in cfgDefaults)) global.db.data.chats[m.chat].bienvenida = !!cfgDefaults.welcome
       }
-      const botIdKey = this.user?.jid || (this.user?.id ? this.decodeJid(this.user.id) : 'bot')
+      const botIdKey = this.user?.jid || (this.user?.id
+        ? (typeof this.decodeJid === 'function' ? this.decodeJid(this.user.id) : decodeJidCompat(this.user.id))
+        : 'bot')
       var settings = global.db.data.settings[botIdKey]
       if (typeof settings !== 'object') global.db.data.settings[botIdKey] = {}
       if (settings) {
@@ -517,7 +521,9 @@ export async function handler(chatUpdate) {
         if (m.chat in global.db.data.chats || m.sender in global.db.data.users) {
           let chat = global.db.data.chats[m.chat]
           let user = global.db.data.users[m.sender]
-          const botIdKey = this.user?.jid || (this.user?.id ? this.decodeJid(this.user.id) : 'bot')
+          const botIdKey = this.user?.jid || (this.user?.id
+            ? (typeof this.decodeJid === 'function' ? this.decodeJid(this.user.id) : decodeJidCompat(this.user.id))
+            : 'bot')
           let setting = global.db.data.settings[botIdKey]
           if (name != 'nable-bot.js' && chat?.isBanned) return
           if (name != 'owner-unbanuser.js' && user?.banned) return
@@ -540,7 +546,9 @@ export async function handler(chatUpdate) {
         let extra = { match, usedPrefix, noPrefix, _args, args, command, text, conn: this, participants, groupMetadata, user: participantUser || {}, bot: botParticipant || {}, isROwner: rolesCtx.isROwner, isOwner: rolesCtx.isOwner, isRAdmin, isAdmin, isBotAdmin, isPrems: rolesCtx.isPrems, chatUpdate, __dirname: ___dirname, __filename, displayTag: m.displayTag, badges: m.badges, role: m.role, parseUserTargets, getUserInfo }
         let didPresence = false
         try {
-          const botIdKey = this.user?.jid || (this.user?.id ? this.decodeJid(this.user.id) : 'bot')
+          const botIdKey = this.user?.jid || (this.user?.id
+            ? (typeof this.decodeJid === 'function' ? this.decodeJid(this.user.id) : decodeJidCompat(this.user.id))
+            : 'bot')
           const autotypeEnabled = !!global.db?.data?.settings?.[botIdKey]?.autotypeDotOnly
           if (autotypeEnabled && usedPrefix === '.' && typeof this.sendPresenceUpdate === 'function') {
             this._presenceGates.set(m.chat, true)
@@ -601,7 +609,9 @@ export async function handler(chatUpdate) {
       }
     }
     try { if (!global.opts['noprint']) await (await import('./lib/print.js')).default(m, this) } catch (e) { console.log(m, m.quoted, e) }
-    const botIdKey = this.user?.jid || (this.user?.id ? this.decodeJid(this.user.id) : 'bot')
+    const botIdKey = this.user?.jid || (this.user?.id
+      ? (typeof this.decodeJid === 'function' ? this.decodeJid(this.user.id) : decodeJidCompat(this.user.id))
+      : 'bot')
     const settingsREAD = global.db.data.settings[botIdKey] || {}
     if (global.opts['autoread']) await this.readMessages([m.key])
     if (settingsREAD.autoread) await this.readMessages([m.key])

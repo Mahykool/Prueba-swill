@@ -1,18 +1,40 @@
-import { smsg } from './lib/simple.js'
+// handler.js
+import { smsg as _smsgImport } from './lib/simple.js'
 import { format } from 'util'
 import { fileURLToPath } from 'url'
 import path, { join } from 'path'
 import { unwatchFile, watchFile } from 'fs'
 import chalk from 'chalk'
 import fetch from 'node-fetch'
-import { decodeJidCompat } from './lib/utils.js'
+import { decodeJidCompat as _decodeJidCompatImport } from './lib/utils.js'
+import { proto } from '@whiskeysockets/baileys'
 
+/**
+ * Robust handler.js
+ * - Importa proto estáticamente
+ * - Usa fallbacks seguros para smsg y decodeJidCompat
+ * - Protege llamadas a this.pushMessage y otras APIs del socket
+ * - Exporta `handler` nombrado y `default`
+ */
+
+/* helpers y fallbacks */
 if (typeof global.__filename !== 'function') global.__filename = u => fileURLToPath(u)
 if (typeof global.__dirname !== 'function') global.__dirname = u => path.dirname(fileURLToPath(u))
 
-import { proto } from '@whiskeysockets/baileys'
+const smsg = typeof _smsgImport === 'function' ? _smsgImport : ((ctx, m) => m)
+
+function decodeJidCompatLocal(jid = '') {
+  if (!jid) return jid
+  if (/:[0-9A-Fa-f]+@/.test(jid)) {
+    const [user, server] = jid.split('@')
+    return user.split(':')[0] + '@' + server
+  }
+  return jid
+}
+const decodeJidCompat = typeof _decodeJidCompatImport === 'function' ? _decodeJidCompatImport : decodeJidCompatLocal
+
 const isNumber = x => typeof x === 'number' && !isNaN(x)
-const delay = ms => isNumber(ms) && new Promise(resolve => setTimeout(function () { clearTimeout(this); resolve() }, ms))
+const delay = ms => isNumber(ms) && new Promise(resolve => setTimeout(resolve, ms))
 
 const toNum = v => (v + '').replace(/[^0-9]/g, '')
 const localPart = v => (v + '').split('@')[0].split(':')[0].split('/')[0].split(',')[0]
@@ -35,8 +57,7 @@ const normalizeJid = v => {
 
 const cleanJid = jid => jid?.split(':')[0] || ''
 
-function decodeJidCompatLocal(jid = '') { if (!jid) return jid; if (/:[0-9A-Fa-f]+@/.test(jid)) { const [user, server] = jid.split('@'); return user.split(':')[0] + '@' + server } return jid }
-
+/* Inicializa DB mínima si no existe */
 if (!global.db) global.db = { data: { users: {}, chats: {}, settings: {}, stats: {} } }
 if (!global.db.data) global.db.data = { users: {}, chats: {}, settings: {}, stats: {} }
 if (typeof global.loadDatabase !== 'function') global.loadDatabase = async () => {}
@@ -69,7 +90,7 @@ function isPremiumJid(jid) {
   return !!u?.premium
 }
 
-// parseUserTargets sin dependencia externa
+/* parseUserTargets: convierte texto/array a lista de JIDs válidos */
 function parseUserTargets(input, options = {}) {
   try {
     if (!input) return []
@@ -103,11 +124,13 @@ function parseUserTargets(input, options = {}) {
   }
 }
 
+/* Handler principal exportado */
 export async function handler(chatUpdate) {
   this.msgqueque = this.msgqueque || []
   if (!chatUpdate) return
   this.__waCache = this.__waCache || new Map()
   this._groupCache = this._groupCache || {}
+
   try {
     const botIdKey = this.user?.jid || (this.user?.id
       ? (typeof this.decodeJid === 'function' ? this.decodeJid(this.user.id) : decodeJidCompat(this.user.id))
@@ -118,6 +141,7 @@ export async function handler(chatUpdate) {
     }
   } catch {}
 
+  /* Wrap presence update to avoid spam if not allowed */
   if (!this._presenceWrapped) {
     const origPresence = typeof this.sendPresenceUpdate === 'function' ? this.sendPresenceUpdate.bind(this) : null
     this._presenceGates = this._presenceGates || new Map()
@@ -131,6 +155,7 @@ export async function handler(chatUpdate) {
     this._presenceWrapped = true
   }
 
+  /* resolveToUserJid con cache */
   const resolveToUserJid = async (id) => {
     try {
       let raw = String(id || '')
@@ -161,6 +186,7 @@ export async function handler(chatUpdate) {
     return { set, meta }
   }
 
+  /* Patch groupParticipantsUpdate para normalizar entradas */
   if (typeof this.groupParticipantsUpdate !== 'function' || !this._patchedGPU) {
     const orig = this.groupParticipantsUpdate?.bind(this)
     this.groupParticipantsUpdate = async (chatJid, ids = [], action, options = {}) => {
@@ -183,6 +209,7 @@ export async function handler(chatUpdate) {
     this._patchedGPU = true
   }
 
+  /* getName fallback y cache */
   if (this && typeof this.getName !== 'function') {
     this._nameCache = this._nameCache || new Map()
     this.getName = (jid = '', fallbackToJid = false) => {
@@ -204,10 +231,17 @@ export async function handler(chatUpdate) {
     }
   }
 
-  this.pushMessage(chatUpdate.messages).catch(console.error)
-  let m = chatUpdate.messages[chatUpdate.messages.length - 1]
+  /* pushMessage protegido */
+  try {
+    if (typeof this.pushMessage === 'function') {
+      try { await this.pushMessage(chatUpdate.messages) } catch (e) { console.error('[pushMessage] error:', e) }
+    }
+  } catch (e) { /* noop */ }
+
+  let m = Array.isArray(chatUpdate.messages) ? chatUpdate.messages[chatUpdate.messages.length - 1] : null
   if (!m) return
 
+  /* Asegura estructura DB */
   if (!global.db) global.db = { data: { users: {}, chats: {}, settings: {}, stats: {} } }
   if (!global.db.data) global.db.data = { users: {}, chats: {}, settings: {}, stats: {} }
   if (global.db.data == null) await global.loadDatabase()
@@ -220,8 +254,9 @@ export async function handler(chatUpdate) {
     m = smsg(this, m) || m
     if (!m) return
 
-    // Mantener compatibilidad: si no es grupo, salir (igual que tu original)
+    // Mantener compatibilidad: si no es grupo, salir (comportamiento original)
     if (!m.isGroup) return
+
     m.exp = 0
     m.limit = false
 
@@ -257,7 +292,7 @@ export async function handler(chatUpdate) {
       const cfgDefaults = (global.chatDefaults && typeof global.chatDefaults === 'object') ? global.chatDefaults : {}
       if (chat) {
         for (const [k, v] of Object.entries(cfgDefaults)) { if (!(k in chat)) chat[k] = v }
-        if (!('bienvenida' in chat) && ('welcome' in chat)) chat.bienvenida = !!chat.welcome
+        if (!('bienvenida' in chat) && ('welcome' in cfgDefaults)) chat.bienvenida = !!chat.welcome
       } else {
         global.db.data.chats[m.chat] = { ...cfgDefaults }
         if (!('bienvenida' in global.db.data.chats[m.chat]) && ('welcome' in cfgDefaults)) global.db.data.chats[m.chat].bienvenida = !!cfgDefaults.welcome
@@ -306,7 +341,8 @@ export async function handler(chatUpdate) {
       const maxAge = 30000
       const cached = this._groupCache[m.chat]
       if (!cached || (now - cached.ts) > maxAge || !cached.data || !cached.data.participants) {
-        let gm = await this.groupMetadata(m.chat).catch(_ => (cached?.data || {})) || {}
+        let gm = {}
+        try { gm = await this.groupMetadata(m.chat) } catch (_){ gm = (cached?.data || {}) }
         this._groupCache[m.chat] = { data: gm, ts: now }
       }
     }
@@ -618,7 +654,7 @@ export async function handler(chatUpdate) {
   }
 }
 
-// dfail completo y seguro
+/* dfail seguro */
 global.dfail = (type, m, conn, usedPrefix) => {
   const ctxDenied = global.rcanalden || {}
   const ctxDev    = global.rcanaldev || {}
@@ -643,3 +679,4 @@ global.dfail = (type, m, conn, usedPrefix) => {
   }
 }
 
+export default { handler }

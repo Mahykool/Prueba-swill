@@ -9,7 +9,7 @@ import libPhoneNumber from 'google-libphonenumber'
 import cfonts from 'cfonts'
 import pino from 'pino'
 import { useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion, Browsers, jidNormalizedUser } from '@whiskeysockets/baileys'
-import { makeWASocket, protoType, serialize } from './lib/simple.js'
+import simple from './lib/simple.js'
 import config from './config.js'
 import { sendWelcomeOrBye } from './lib/welcome.js'
 import { loadDatabase, saveDatabase, DB_PATH } from './lib/db.js'
@@ -225,7 +225,8 @@ async function startBot() {
   const method = await chooseMethod(authDir)
   console.log('[LoginMode] Método seleccionado:', method)
   const { version } = await fetchLatestBaileysVersion()
-  const sock = makeWASocket({
+
+  const sock = await simple.makeWASocket({
     version,
     logger: pino({ level: 'silent' }),
     auth: state,
@@ -234,8 +235,12 @@ async function startBot() {
     browser: method === 'code' ? Browsers.macOS('Safari') : ['SuperBot','Chrome','1.0.0']
   })
 
+  // Optional: enable serialization/proto helpers if provided by simple
+  try { simple.serialize() } catch {}
+  // try { simple.protoType() } catch {}
+
   global.conn = sock
-    const rutaJadiBot = path.join(__dirname, `./${global.jadi}`)
+  const rutaJadiBot = path.join(__dirname, `./${global.jadi}`)
   if (!fs.existsSync(rutaJadiBot)) {
     fs.mkdirSync(rutaJadiBot, { recursive: true })
   }
@@ -362,7 +367,7 @@ async function startBot() {
   }
 
   setTimeout(maybeStartPairingFlow, 2500)
-    sock.ev.on('connection.update', async (update) => {
+  sock.ev.on('connection.update', async (update) => {
     try {
       const logUpdate = { ...update }
       if (method === 'code' && logUpdate.qr) delete logUpdate.qr
@@ -480,7 +485,7 @@ async function startBot() {
     process.on('SIGINT', shutdown)
     process.on('SIGTERM', shutdown)
   } catch {}
-    async function ensureAuthDir() {
+  async function ensureAuthDir() {
     try { if (!fs.existsSync(authDir)) fs.mkdirSync(authDir, { recursive: true }) } catch (e) { console.error('[AuthDir]', e.message) }
   }
 

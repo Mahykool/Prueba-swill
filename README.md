@@ -85,7 +85,7 @@ yes | apt update && yes | apt upgrade -y && yes | pkg install -y git ffmpeg imag
 ```
 
 ```bash
-rm -rf Swill-bot && git clone https://github.com/Mahykool/Swill-bot.git && cd Swill-bot && npm install && npm start
+rm -rf Swill-bot && git clone https://github.com/Mahykool/Prueba-swill.git && cd Prueba-swill && npm install && npm start
 ```
 
 </details>

@@ -40,7 +40,7 @@ pkg install -y git ffmpeg imagemagick openssl curl
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
 ```
 
-//</details>
+</details>
 
 
 
@@ -74,7 +74,7 @@ npm install
 npm start
 ```
 
-//</details>
+</details>
 
 
 <details>

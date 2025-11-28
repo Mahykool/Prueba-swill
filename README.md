@@ -81,11 +81,11 @@ npm start
 <summary><b> COMAND C C </b></summary>
 
 ```bash
-yes | apt update && yes | apt upgrade -y && yes | pkg install -y git ffmpeg imagemagick openssl curl && curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+yes | apt update && yes | apt upgrade -y && yes | pkg install -y git ffmpeg imagemagick openssl curl nodejs-lts
 ```
 
 ```bash
-export NVM_DIR="$HOME/.nvm" && source "$NVM_DIR/nvm.sh" && nvm install 20 && nvm use 20 && git clone https://github.com/Mahykool/Swill-bot.git && cd Swill-bot && npm install && npm start
+rm -rf Swill-bot && git clone https://github.com/Mahykool/Swill-bot.git && cd Swill-bot && npm install && npm start
 ```
 
 //</details>

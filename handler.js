@@ -5,6 +5,7 @@ import path, { join } from 'path'
 import { unwatchFile, watchFile } from 'fs'
 import chalk from 'chalk'
 import fetch from 'node-fetch'
+import { decodeJidCompat } from './lib/utils.js'
 
 if (typeof global.__filename !== 'function') global.__filename = u => fileURLToPath(u)
 if (typeof global.__dirname !== 'function') global.__dirname = u => path.dirname(fileURLToPath(u))
